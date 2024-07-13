@@ -47,15 +47,13 @@
 #include <stdexcept>
 #include <tuple>
 
-namespace DX
-{
-   inline void ThrowIfFailed(HRESULT hr)
-   {
-      if (FAILED(hr))
-      {
+namespace DX {
+   inline void ThrowIfFailed(HRESULT hr, char const* const message) {
+      if (FAILED(hr)) {
          // Set a breakpoint on this line to catch DirectX API errors
-         throw std::exception();
+         throw std::exception(message);
       }
    }
-}
+   inline void ThrowIfFailed(HRESULT hr) { ThrowIfFailed(hr, ""); }
+}  // namespace DX
 #pragma once
