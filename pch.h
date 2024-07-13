@@ -38,6 +38,11 @@
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 
+#include <CommonStates.h>
+#include <SimpleMath.h>
+#include <SpriteBatch.h>
+#include "WICTextureLoader.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>

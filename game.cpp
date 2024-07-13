@@ -1,6 +1,11 @@
 #include "pch.h"
 #include "Game.h"
 
+void Game::GetDefaultSize(long& width, long& height) {
+   width = CELLS_X * CELL_WIDTH;
+   height = CELLS_Y * CELL_HEIGHT;
+}
+
 bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
 
    hInstance_ = hInstance;
@@ -9,8 +14,8 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
    RECT dimensions;
    GetClientRect(hwnd, &dimensions);
 
-   auto width = dimensions.right - dimensions.left;
-   auto height = dimensions.bottom - dimensions.top;
+   width_ = dimensions.right - dimensions.left;
+   height_ = dimensions.bottom - dimensions.top;
 
    D3D_FEATURE_LEVEL featureLevels[] = {
        D3D_FEATURE_LEVEL_11_1,
@@ -20,8 +25,8 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
    DXGI_SWAP_CHAIN_DESC swapChainDesc;
    ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
    swapChainDesc.BufferCount = 1;
-   swapChainDesc.BufferDesc.Width = width;
-   swapChainDesc.BufferDesc.Height = height;
+   swapChainDesc.BufferDesc.Width = width_;
+   swapChainDesc.BufferDesc.Height = height_;
    swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
    swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
    swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
@@ -75,23 +80,57 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
 
    d3dContext_->OMSetRenderTargets(1, renderTargetView_.GetAddressOf(), nullptr);
 
-   D3D11_VIEWPORT viewport;
-   viewport.Width = static_cast<float>(width);
-   viewport.Height = static_cast<float>(height);
-   viewport.TopLeftX = 0.0f;
-   viewport.TopLeftY = 0.0f;
+   D3D11_VIEWPORT viewport = {};
+   viewport.Width = static_cast<float>(width_);
+   viewport.Height = static_cast<float>(height_);
 
    d3dContext_->RSSetViewports(1, &viewport);
+
+   return LoadContent();
+}
+
+bool Game::LoadContent() {
+   cellSpriteBatch_ = std::make_unique<DirectX::DX11::SpriteBatch>(d3dContext_.Get());
+   states_ = std::make_unique<DirectX::DX11::CommonStates>(d3dDevice_.Get());
+
+   Microsoft::WRL::ComPtr<ID3D11Resource> resource;
+   DX::ThrowIfFailed(
+      DirectX::CreateWICTextureFromFile(d3dDevice_.Get(), CELL_FILENAME, resource.GetAddressOf(),
+         cellTexture_.ReleaseAndGetAddressOf()));
+
+   Microsoft::WRL::ComPtr<ID3D11Texture2D> cell;
+   DX::ThrowIfFailed(resource.As(&cell));
+
+   CD3D11_TEXTURE2D_DESC cellDesc;
+   cell->GetDesc(&cellDesc);
+
+   origin_.x = 0;
+   origin_.y = 0;
+
+   tileRect_.left = 0;
+   tileRect_.right = cellDesc.Width * CELLS_X;
+   tileRect_.top = 0;
+   tileRect_.bottom = cellDesc.Height * CELLS_Y;
+
+   screenPos_.x = 0;
+   screenPos_.y = 0;
 
    return true;
 }
 
 void Game::Update(float dt) {}
+
 void Game::Render() {
    if (d3dContext_ == 0) return;
 
    d3dContext_->ClearRenderTargetView(renderTargetView_.Get(),
       DirectX::Colors::Aqua);
+
+   cellSpriteBatch_->Begin(DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred, states_->NonPremultiplied(), states_->LinearWrap());
+
+   cellSpriteBatch_->Draw(cellTexture_.Get(), screenPos_, &tileRect_, DirectX::Colors::White, 0.f, origin_);
+
+   cellSpriteBatch_->End();
 
    swapChain_->Present(1, 0);
 }

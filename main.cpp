@@ -29,7 +29,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPWSTR cmdLine,
 
    if (!RegisterClassEx(&wndClass)) return -1;
 
-   RECT rc = { 0, 0, 800, 600 };
+   long width;
+   long height;
+   game->GetDefaultSize(width, height);
+
+   RECT rc = { 0, 0, width, height };
    AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
    HWND hwnd = CreateWindowExW(0, L"D3D11Minesweeper", L"Minesweeper",
       WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
