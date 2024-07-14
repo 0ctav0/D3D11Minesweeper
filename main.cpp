@@ -55,8 +55,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPWSTR cmdLine,
          DispatchMessage(&msg);
       }
       else {
-         game->Update(0.0f);
-         game->Render();
+         if (!IsIconic(hwnd)) {
+            game->Update(0.0f);
+            game->Render();
+         }
       }
    }
 
