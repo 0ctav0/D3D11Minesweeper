@@ -38,6 +38,8 @@
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 
+#include <Keyboard.h>
+#include <Mouse.h>
 #include <CommonStates.h>
 #include <SimpleMath.h>
 #include <SpriteBatch.h>

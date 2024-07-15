@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "DeviceManager.h"
+#include "Controller.h"
 #include "Game.h"
 
 namespace Texture {
@@ -9,6 +10,11 @@ namespace Texture {
 void Game::GetDefaultSize(long& width, long& height) {
    width = CELLS_X * CELL_WIDTH;
    height = CELLS_Y * CELL_HEIGHT;
+}
+
+bool Game::ExitGame() {
+   PostQuitMessage(0);
+   return true;
 }
 
 bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
@@ -23,9 +29,11 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
    height_ = dimensions.bottom - dimensions.top;
 
    d3d_ = DeviceManager();
-   d3d_.Init(hwnd, width_, height_);
+   auto d3dSuccess = d3d_.Init(hwnd, width_, height_);
+   cntrl_ = Controller();
+   auto cntrlSuccess = cntrl_.Init(hwnd);
 
-   return LoadContent();
+   return d3dSuccess && cntrlSuccess && LoadContent();
 }
 
 bool Game::LoadContent() {
@@ -57,7 +65,15 @@ bool Game::LoadContent() {
    return true;
 }
 
-void Game::Update(float dt) {}
+void Game::Update(float dt) {
+   auto kb = cntrl_.keyboard_->GetState();
+   auto mouse = cntrl_.mouse_->GetState();
+
+   if (kb.Escape) {
+      ExitGame();
+   }
+
+}
 
 void Game::Render() {
    if (d3d_.ctx_ == 0) return;

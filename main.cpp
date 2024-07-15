@@ -71,15 +71,41 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam,
    HDC hDC;
 
    switch (message) {
+   case WM_ACTIVATEAPP:
+      DirectX::Keyboard::ProcessMessage(message, wParam, lParam);
+      DirectX::Mouse::ProcessMessage(message, wParam, lParam);
+      break;
+   case WM_ACTIVATE:
+   case WM_INPUT:
+   case WM_MOUSEMOVE:
+   case WM_LBUTTONDOWN:
+   case WM_LBUTTONUP:
+   case WM_RBUTTONDOWN:
+   case WM_RBUTTONUP:
+   case WM_MBUTTONDOWN:
+   case WM_MBUTTONUP:
+   case WM_MOUSEWHEEL:
+   case WM_XBUTTONDOWN:
+   case WM_XBUTTONUP:
+   case WM_MOUSEHOVER:
+      DirectX::Mouse::ProcessMessage(message, wParam, lParam);
+      break;
+   case WM_KEYDOWN:
+   case WM_KEYUP:
+   case WM_SYSKEYUP:
+      DirectX::Keyboard::ProcessMessage(message, wParam, lParam);
+      break;
+   case WM_SYSKEYDOWN:
+      DirectX::Keyboard::ProcessMessage(message, wParam, lParam);
+      break;
    case WM_PAINT:
       hDC = BeginPaint(hwnd, &paintStruct);
       EndPaint(hwnd, &paintStruct);
       break;
    case WM_DESTROY:
-      PostQuitMessage(0);
+      game->ExitGame();
       break;
    case WM_SETFOCUS:
-
       break;
    default:
       return DefWindowProc(hwnd, message, wParam, lParam);

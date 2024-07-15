@@ -1,5 +1,6 @@
 #pragma once
 #include "DeviceManager.h"
+#include "Controller.h"
 
 #define CELLS_X 10
 #define CELLS_Y 8
@@ -10,6 +11,7 @@
 class Game {
 public:
    void GetDefaultSize(long& width, long& height);
+   bool ExitGame();
    bool Init(HINSTANCE hInstance, HWND hwnd);
    bool LoadContent();
    void Update(float dt);
@@ -22,6 +24,7 @@ private:
    long height_;
 
    DeviceManager d3d_;
+   Controller cntrl_;
 
    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture_;
    std::unique_ptr<DirectX::SpriteBatch> textureSpriteBatch_;
