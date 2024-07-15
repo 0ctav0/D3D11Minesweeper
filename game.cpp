@@ -7,6 +7,7 @@ namespace Texture {
    RECT CELL_RECT = { 0, 0, CELL_WIDTH, CELL_HEIGHT };
    RECT SELECTED_CELL_RECT = { CELL_WIDTH, 0, CELL_WIDTH * 2, CELL_HEIGHT };
    RECT FLAG_RECT = { CELL_WIDTH * 2, 0, CELL_WIDTH * 3, CELL_HEIGHT };
+   RECT MINE_RECT = { CELL_WIDTH * 3, 0, CELL_WIDTH * 4, CELL_HEIGHT };
 }
 
 void Game::GetDefaultSize(long& width, long& height) {
@@ -53,13 +54,33 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
    cntrl_ = Controller();
    auto cntrlSuccess = cntrl_.Init(hwnd);
 
+   InitMines();
+
+   return d3dSuccess && cntrlSuccess && LoadContent();
+}
+
+void Game::InitMines() {
    for (auto x = 0; x < CELLS_X; x++) {
       for (auto y = 0; y < CELLS_Y; y++) {
          cells_.insert(std::pair{ std::format("{},{}", x, y), Cell() });
       }
    }
 
-   return d3dSuccess && cntrlSuccess && LoadContent();
+   std::random_device dev;
+   std::mt19937 rng(dev());
+   std::uniform_int_distribution<std::mt19937::result_type> distX(0, CELLS_X - 1);
+   std::uniform_int_distribution<std::mt19937::result_type> distY(0, CELLS_Y - 1);
+
+   auto i = 0;
+   while (i < MINES_COUNT) {
+      auto x = distX(rng);
+      auto y = distY(rng);
+      Cell* cell = &cells_[std::format("{},{}", x, y)];
+      if (!cell->mined) {
+         cell->mined = true;
+         i++;
+      }
+   }
 }
 
 bool Game::LoadContent() {
@@ -121,6 +142,9 @@ void Game::Render() {
                DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + 6, float(y * CELL_HEIGHT) + 2 };
                textureSpriteBatch_->Draw(texture_.Get(), at, &Texture::FLAG_RECT, DirectX::Colors::White, 0.f, origin_);
             }
+         }
+         else if (cell->mined) {
+            textureSpriteBatch_->Draw(texture_.Get(), at, &Texture::MINE_RECT, DirectX::Colors::White, 0.f, origin_);
          }
       }
    }

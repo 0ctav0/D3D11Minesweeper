@@ -2,5 +2,5 @@
 
 class Cell {
 public:
-   bool opened, flagged = false;
+   bool opened, flagged, mined = false;
 };

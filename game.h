@@ -4,11 +4,21 @@
 #include "Controller.h"
 #include "Cell.h"
 
+// percentage of mines
+enum Difficulty {
+   Easy = 10,
+   Medium = 20,
+   Hard = 30,
+   Impossible = 40
+};
+
 #define CELLS_X 10
 #define CELLS_Y 8
 #define CELL_WIDTH 64
 #define CELL_HEIGHT 64
 #define TEXTURE_FILENAME L"img/texture.png"
+auto constexpr MINES_COUNT = int(CELLS_X * CELLS_Y / 100.0f * Difficulty::Easy);
+
 
 class Game {
 public:
@@ -25,6 +35,8 @@ public:
    void Render();
 
 private:
+   void InitMines();
+
    HINSTANCE hInstance_;
    HWND hwnd_;
    long width_;

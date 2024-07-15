@@ -55,6 +55,7 @@
 #include <tuple>
 #include <format>
 #include <unordered_map>
+#include <random>
 
 namespace DX {
    inline void ThrowIfFailed(HRESULT hr, char const* const message) {
