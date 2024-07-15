@@ -1,4 +1,5 @@
 #pragma once
+
 #include "DeviceManager.h"
 #include "Controller.h"
 #include "Cell.h"
@@ -15,7 +16,8 @@ public:
    bool ExitGame();
 
    void OnMouseMove();
-   void OnMouseDown();
+   void OnMouseLDown();
+   void OnMouseRDown();
 
    bool Init(HINSTANCE hInstance, HWND hwnd);
    bool LoadContent();

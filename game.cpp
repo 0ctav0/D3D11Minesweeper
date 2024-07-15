@@ -6,6 +6,7 @@
 namespace Texture {
    RECT CELL_RECT = { 0, 0, CELL_WIDTH, CELL_HEIGHT };
    RECT SELECTED_CELL_RECT = { CELL_WIDTH, 0, CELL_WIDTH * 2, CELL_HEIGHT };
+   RECT FLAG_RECT = { CELL_WIDTH * 2, 0, CELL_WIDTH * 3, CELL_HEIGHT };
 }
 
 void Game::GetDefaultSize(long& width, long& height) {
@@ -24,9 +25,16 @@ void Game::OnMouseMove() {
    selectedCell_.y = mouse.y / CELL_HEIGHT;
 }
 
-void Game::OnMouseDown() {
+void Game::OnMouseLDown() {
    Cell* cell = &cells_[std::format("{},{}", selectedCell_.x, selectedCell_.y)];
-   cell->opened = true;
+   if (!cell->flagged)
+      cell->opened = true;
+}
+
+void Game::OnMouseRDown() {
+   Cell* cell = &cells_[std::format("{},{}", selectedCell_.x, selectedCell_.y)];
+   if (!cell->opened)
+      cell->flagged = !cell->flagged;
 }
 
 bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
@@ -107,8 +115,12 @@ void Game::Render() {
          DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH), float(y * CELL_HEIGHT) };
          Cell* cell = &cells_[std::format("{},{}", x, y)];
          if (!cell->opened) {
-            RECT* rect = selectedCell_.x == x && selectedCell_.y == y ? &Texture::SELECTED_CELL_RECT : &Texture::CELL_RECT;
+            RECT* rect = selectedCell_.x == x && selectedCell_.y == y && !cell->flagged ? &Texture::SELECTED_CELL_RECT : &Texture::CELL_RECT;
             textureSpriteBatch_->Draw(texture_.Get(), at, rect, DirectX::Colors::White, 0.f, origin_);
+            if (cell->flagged) {
+               DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + 6, float(y * CELL_HEIGHT) + 2 };
+               textureSpriteBatch_->Draw(texture_.Get(), at, &Texture::FLAG_RECT, DirectX::Colors::White, 0.f, origin_);
+            }
          }
       }
    }
