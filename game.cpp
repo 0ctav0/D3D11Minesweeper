@@ -5,7 +5,7 @@
 
 namespace Texture {
    RECT CELL_RECT = { 0, 0, CELL_WIDTH, CELL_HEIGHT };
-   RECT SELECTED_CELL_RECT = { CELL_WIDTH + 1, 0, CELL_WIDTH * 2 + 1, CELL_HEIGHT };
+   RECT SELECTED_CELL_RECT = { CELL_WIDTH, 0, CELL_WIDTH * 2, CELL_HEIGHT };
 }
 
 void Game::GetDefaultSize(long& width, long& height) {
