@@ -12,6 +12,9 @@ class Game {
 public:
    void GetDefaultSize(long& width, long& height);
    bool ExitGame();
+
+   void OnMouseMove();
+
    bool Init(HINSTANCE hInstance, HWND hwnd);
    bool LoadContent();
    void Update(float dt);
@@ -32,4 +35,7 @@ private:
    DirectX::SimpleMath::Vector2 screenPos_;
    DirectX::SimpleMath::Vector2 origin_;
    RECT tileRect_;
+
+   int mouseX_, mouseY_ = 0;
+   DirectX::SimpleMath::Vector2 selectedCell_;
 };

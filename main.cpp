@@ -36,7 +36,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPWSTR cmdLine,
    RECT rc = { 0, 0, width, height };
    AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
    HWND hwnd = CreateWindowExW(0, L"D3D11Minesweeper", L"Minesweeper",
-      WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
+      WS_OVERLAPPED | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT,
       rc.right - rc.left, rc.bottom - rc.top, nullptr,
       nullptr, hInstance, nullptr);
 
@@ -75,9 +75,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam,
       DirectX::Keyboard::ProcessMessage(message, wParam, lParam);
       DirectX::Mouse::ProcessMessage(message, wParam, lParam);
       break;
+   case WM_MOUSEMOVE:
+      game->OnMouseMove();
+      DirectX::Mouse::ProcessMessage(message, wParam, lParam);
+      break;
    case WM_ACTIVATE:
    case WM_INPUT:
-   case WM_MOUSEMOVE:
    case WM_LBUTTONDOWN:
    case WM_LBUTTONUP:
    case WM_RBUTTONDOWN:

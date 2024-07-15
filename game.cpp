@@ -5,6 +5,7 @@
 
 namespace Texture {
    RECT CELL_RECT = { 0, 0, CELL_WIDTH, CELL_HEIGHT };
+   RECT SELECTED_CELL_RECT = { CELL_WIDTH + 1, 0, CELL_WIDTH * 2 + 1, CELL_HEIGHT };
 }
 
 void Game::GetDefaultSize(long& width, long& height) {
@@ -15,6 +16,12 @@ void Game::GetDefaultSize(long& width, long& height) {
 bool Game::ExitGame() {
    PostQuitMessage(0);
    return true;
+}
+
+void Game::OnMouseMove() {
+   auto mouse = cntrl_.mouse_->GetState();
+   selectedCell_.x = mouse.x / CELL_WIDTH;
+   selectedCell_.y = mouse.y / CELL_HEIGHT;
 }
 
 bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
@@ -68,6 +75,7 @@ bool Game::LoadContent() {
 void Game::Update(float dt) {
    auto kb = cntrl_.keyboard_->GetState();
    auto mouse = cntrl_.mouse_->GetState();
+   mouseX_ = mouse.x; mouseY_ = mouse.y;
 
    if (kb.Escape) {
       ExitGame();
@@ -86,7 +94,8 @@ void Game::Render() {
    for (auto x = 0; x < CELLS_X; x++) {
       for (auto y = 0; y < CELLS_Y; y++) {
          DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH), float(y * CELL_HEIGHT) };
-         textureSpriteBatch_->Draw(texture_.Get(), at, &Texture::CELL_RECT, DirectX::Colors::White, 0.f, origin_);
+         RECT* rect = selectedCell_.x == x && selectedCell_.y == y ? &Texture::SELECTED_CELL_RECT : &Texture::CELL_RECT;
+         textureSpriteBatch_->Draw(texture_.Get(), at, rect, DirectX::Colors::White, 0.f, origin_);
       }
    }
 
