@@ -140,6 +140,7 @@
     <ClCompile Include="pch.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Cell.h" />
     <ClInclude Include="Controller.h" />
     <ClInclude Include="DeviceManager.h" />
     <ClInclude Include="game.h" />

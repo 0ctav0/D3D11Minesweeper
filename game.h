@@ -1,6 +1,7 @@
 #pragma once
 #include "DeviceManager.h"
 #include "Controller.h"
+#include "Cell.h"
 
 #define CELLS_X 10
 #define CELLS_Y 8
@@ -14,6 +15,7 @@ public:
    bool ExitGame();
 
    void OnMouseMove();
+   void OnMouseDown();
 
    bool Init(HINSTANCE hInstance, HWND hwnd);
    bool LoadContent();
@@ -35,6 +37,8 @@ private:
    DirectX::SimpleMath::Vector2 screenPos_;
    DirectX::SimpleMath::Vector2 origin_;
    RECT tileRect_;
+
+   std::unordered_map<std::string, Cell> cells_;
 
    int mouseX_, mouseY_ = 0;
    DirectX::SimpleMath::Vector2 selectedCell_;

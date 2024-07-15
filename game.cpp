@@ -24,6 +24,11 @@ void Game::OnMouseMove() {
    selectedCell_.y = mouse.y / CELL_HEIGHT;
 }
 
+void Game::OnMouseDown() {
+   Cell* cell = &cells_[std::format("{},{}", selectedCell_.x, selectedCell_.y)];
+   cell->opened = true;
+}
+
 bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
 
    hInstance_ = hInstance;
@@ -39,6 +44,12 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
    auto d3dSuccess = d3d_.Init(hwnd, width_, height_);
    cntrl_ = Controller();
    auto cntrlSuccess = cntrl_.Init(hwnd);
+
+   for (auto x = 0; x < CELLS_X; x++) {
+      for (auto y = 0; y < CELLS_Y; y++) {
+         cells_.insert(std::pair{ std::format("{},{}", x, y), Cell() });
+      }
+   }
 
    return d3dSuccess && cntrlSuccess && LoadContent();
 }
@@ -94,8 +105,11 @@ void Game::Render() {
    for (auto x = 0; x < CELLS_X; x++) {
       for (auto y = 0; y < CELLS_Y; y++) {
          DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH), float(y * CELL_HEIGHT) };
-         RECT* rect = selectedCell_.x == x && selectedCell_.y == y ? &Texture::SELECTED_CELL_RECT : &Texture::CELL_RECT;
-         textureSpriteBatch_->Draw(texture_.Get(), at, rect, DirectX::Colors::White, 0.f, origin_);
+         Cell* cell = &cells_[std::format("{},{}", x, y)];
+         if (!cell->opened) {
+            RECT* rect = selectedCell_.x == x && selectedCell_.y == y ? &Texture::SELECTED_CELL_RECT : &Texture::CELL_RECT;
+            textureSpriteBatch_->Draw(texture_.Get(), at, rect, DirectX::Colors::White, 0.f, origin_);
+         }
       }
    }
 

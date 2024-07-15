@@ -53,6 +53,8 @@
 #include <memory>
 #include <stdexcept>
 #include <tuple>
+#include <format>
+#include <unordered_map>
 
 namespace DX {
    inline void ThrowIfFailed(HRESULT hr, char const* const message) {
