@@ -1,6 +1,10 @@
 #include "pch.h"
 #include "Game.h"
 
+namespace Texture {
+   RECT CELL_RECT = { 0, 0, CELL_WIDTH, CELL_HEIGHT };
+}
+
 void Game::GetDefaultSize(long& width, long& height) {
    width = CELLS_X * CELL_WIDTH;
    height = CELLS_Y * CELL_HEIGHT;
@@ -90,13 +94,13 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
 }
 
 bool Game::LoadContent() {
-   cellSpriteBatch_ = std::make_unique<DirectX::DX11::SpriteBatch>(d3dContext_.Get());
+   textureSpriteBatch_ = std::make_unique<DirectX::DX11::SpriteBatch>(d3dContext_.Get());
    states_ = std::make_unique<DirectX::DX11::CommonStates>(d3dDevice_.Get());
 
    Microsoft::WRL::ComPtr<ID3D11Resource> resource;
    DX::ThrowIfFailed(
-      DirectX::CreateWICTextureFromFile(d3dDevice_.Get(), CELL_FILENAME, resource.GetAddressOf(),
-         cellTexture_.ReleaseAndGetAddressOf()));
+      DirectX::CreateWICTextureFromFile(d3dDevice_.Get(), TEXTURE_FILENAME, resource.GetAddressOf(),
+         texture_.ReleaseAndGetAddressOf()));
 
    Microsoft::WRL::ComPtr<ID3D11Texture2D> cell;
    DX::ThrowIfFailed(resource.As(&cell));
@@ -124,13 +128,18 @@ void Game::Render() {
    if (d3dContext_ == 0) return;
 
    d3dContext_->ClearRenderTargetView(renderTargetView_.Get(),
-      DirectX::Colors::Aqua);
+      DirectX::Colors::Gray);
 
-   cellSpriteBatch_->Begin(DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred, states_->NonPremultiplied(), states_->LinearWrap());
+   textureSpriteBatch_->Begin(DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred, states_->NonPremultiplied(), states_->LinearWrap());
 
-   cellSpriteBatch_->Draw(cellTexture_.Get(), screenPos_, &tileRect_, DirectX::Colors::White, 0.f, origin_);
+   for (auto x = 0; x < CELLS_X; x++) {
+      for (auto y = 0; y < CELLS_Y; y++) {
+         DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH), float(y * CELL_HEIGHT) };
+         textureSpriteBatch_->Draw(texture_.Get(), at, &Texture::CELL_RECT, DirectX::Colors::White, 0.f, origin_);
+      }
+   }
 
-   cellSpriteBatch_->End();
+   textureSpriteBatch_->End();
 
    swapChain_->Present(1, 0);
 }

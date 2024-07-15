@@ -4,7 +4,9 @@
 #define CELLS_Y 8
 #define CELL_WIDTH 64
 #define CELL_HEIGHT 64
-#define CELL_FILENAME L"img/cell-64.png"
+#define TEXTURE_FILENAME L"img/texture.png"
+
+
 
 class Game {
 public:
@@ -27,8 +29,8 @@ private:
    Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain_;
    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView_;
 
-   Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cellTexture_;
-   std::unique_ptr<DirectX::SpriteBatch> cellSpriteBatch_;
+   Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture_;
+   std::unique_ptr<DirectX::SpriteBatch> textureSpriteBatch_;
    std::unique_ptr<DirectX::CommonStates> states_;
    DirectX::SimpleMath::Vector2 screenPos_;
    DirectX::SimpleMath::Vector2 origin_;
