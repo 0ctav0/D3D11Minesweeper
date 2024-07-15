@@ -1,12 +1,11 @@
 #pragma once
+#include "DeviceManager.h"
 
 #define CELLS_X 10
 #define CELLS_Y 8
 #define CELL_WIDTH 64
 #define CELL_HEIGHT 64
 #define TEXTURE_FILENAME L"img/texture.png"
-
-
 
 class Game {
 public:
@@ -22,12 +21,7 @@ private:
    long width_;
    long height_;
 
-   D3D_FEATURE_LEVEL featureLevel_;
-   Microsoft::WRL::ComPtr<ID3D11Device1> d3dDevice_;
-   Microsoft::WRL::ComPtr<ID3D11DeviceContext1> d3dContext_;
-
-   Microsoft::WRL::ComPtr<IDXGISwapChain1> swapChain_;
-   Microsoft::WRL::ComPtr<ID3D11RenderTargetView> renderTargetView_;
+   DeviceManager d3d_;
 
    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture_;
    std::unique_ptr<DirectX::SpriteBatch> textureSpriteBatch_;
