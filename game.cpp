@@ -21,21 +21,9 @@ bool Game::ExitGame() {
 }
 
 void Game::OnMouseMove() {
-   auto mouse = cntrl_.mouse_->GetState();
-   selectedCell_.x = mouse.x / CELL_WIDTH;
-   selectedCell_.y = mouse.y / CELL_HEIGHT;
-}
-
-void Game::OnMouseLDown() {
-   Cell* cell = &cells_[std::format("{},{}", selectedCell_.x, selectedCell_.y)];
-   if (!cell->flagged)
-      cell->opened = true;
-}
-
-void Game::OnMouseRDown() {
-   Cell* cell = &cells_[std::format("{},{}", selectedCell_.x, selectedCell_.y)];
-   if (!cell->opened)
-      cell->flagged = !cell->flagged;
+   auto* mouse = cntrl_.GetMouseState();
+   selectedCell_.x = mouse->x / CELL_WIDTH;
+   selectedCell_.y = mouse->y / CELL_HEIGHT;
 }
 
 bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
@@ -83,6 +71,27 @@ void Game::InitMines() {
    }
 }
 
+Cell* Game::GetSelectedCell() {
+   return &cells_[std::format("{},{}", selectedCell_.x, selectedCell_.y)];
+}
+
+void Game::OpenAt() {
+   auto cell = GetSelectedCell();
+   if (!cell->flagged)
+      cell->opened = true;
+}
+
+void Game::FlagAt() {
+   auto cell = GetSelectedCell();
+   if (!cell->opened)
+      cell->flagged = !cell->flagged;
+}
+
+bool Game::IsCellSelected(int x, int y) {
+   auto cell = GetSelectedCell();
+   return selectedCell_.x == x && selectedCell_.y == y && !cell->flagged;
+}
+
 bool Game::LoadContent() {
    textureSpriteBatch_ = std::make_unique<DirectX::DX11::SpriteBatch>(d3d_.ctx_.Get());
    states_ = std::make_unique<DirectX::DX11::CommonStates>(d3d_.device_.Get());
@@ -113,14 +122,22 @@ bool Game::LoadContent() {
 }
 
 void Game::Update(float dt) {
-   auto kb = cntrl_.keyboard_->GetState();
-   auto mouse = cntrl_.mouse_->GetState();
-   mouseX_ = mouse.x; mouseY_ = mouse.y;
+   cntrl_.BeforeUpdate();
+   auto* kb = cntrl_.GetKeyboardState();
 
-   if (kb.Escape) {
+   if (kb->Escape) {
       ExitGame();
    }
 
+   if (cntrl_.MouseReleased(&DirectX::Mouse::State::leftButton)) {
+      OpenAt();
+   }
+
+   if (cntrl_.MouseReleased(&DirectX::Mouse::State::rightButton)) {
+      FlagAt();
+   }
+
+   cntrl_.AfterUpdate();
 }
 
 void Game::Render() {
@@ -136,7 +153,7 @@ void Game::Render() {
          DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH), float(y * CELL_HEIGHT) };
          Cell* cell = &cells_[std::format("{},{}", x, y)];
          if (!cell->opened) {
-            RECT* rect = selectedCell_.x == x && selectedCell_.y == y && !cell->flagged ? &Texture::SELECTED_CELL_RECT : &Texture::CELL_RECT;
+            RECT* rect = IsCellSelected(x, y) ? &Texture::SELECTED_CELL_RECT : &Texture::CELL_RECT;
             textureSpriteBatch_->Draw(texture_.Get(), at, rect, DirectX::Colors::White, 0.f, origin_);
             if (cell->flagged) {
                DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + 6, float(y * CELL_HEIGHT) + 2 };

@@ -26,8 +26,6 @@ public:
    bool ExitGame();
 
    void OnMouseMove();
-   void OnMouseLDown();
-   void OnMouseRDown();
 
    bool Init(HINSTANCE hInstance, HWND hwnd);
    bool LoadContent();
@@ -36,6 +34,10 @@ public:
 
 private:
    void InitMines();
+   Cell* GetSelectedCell();
+   void OpenAt();
+   void FlagAt();
+   bool IsCellSelected(int x, int y);
 
    HINSTANCE hInstance_;
    HWND hwnd_;

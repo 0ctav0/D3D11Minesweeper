@@ -56,6 +56,7 @@
 #include <format>
 #include <unordered_map>
 #include <random>
+#include <functional>
 
 namespace DX {
    inline void ThrowIfFailed(HRESULT hr, char const* const message) {

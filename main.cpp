@@ -79,17 +79,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT message, WPARAM wParam,
       game->OnMouseMove();
       DirectX::Mouse::ProcessMessage(message, wParam, lParam);
       break;
-   case WM_LBUTTONDOWN:
-      game->OnMouseLDown();
-      DirectX::Mouse::ProcessMessage(message, wParam, lParam);
-      break;
-   case WM_RBUTTONDOWN:
-      game->OnMouseRDown();
-      DirectX::Mouse::ProcessMessage(message, wParam, lParam);
-      break;
    case WM_ACTIVATE:
    case WM_INPUT:
    case WM_LBUTTONUP:
+   case WM_LBUTTONDOWN:
+   case WM_RBUTTONDOWN:
    case WM_RBUTTONUP:
    case WM_MBUTTONDOWN:
    case WM_MBUTTONUP:
