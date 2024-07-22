@@ -12,13 +12,9 @@ enum Difficulty {
    Impossible = 40
 };
 
-#define CELLS_X 10
-#define CELLS_Y 8
-#define CELL_WIDTH 64
-#define CELL_HEIGHT 64
-#define TEXTURE_FILENAME L"img/texture.png"
-auto constexpr MINES_COUNT = int(CELLS_X * CELLS_Y / 100.0f * Difficulty::Easy);
-
+auto constexpr CELLS_X = 10;
+auto constexpr CELLS_Y = 8;
+int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Easy;
 
 class Game {
 public:
@@ -34,9 +30,11 @@ public:
 
 private:
    void InitMines();
-   Cell* GetSelectedCell();
-   void OpenAt();
-   void FlagAt();
+   Cell* GetCell(int x, int y);
+   void OpenAt(int x, int y);
+   void IterateNear(int originX, int originY, std::function<void(int, int)> cb);
+   void ExploreMap(int originX, int originY);
+   void FlagAt(int x, int y);
    bool IsCellSelected(int x, int y);
 
    HINSTANCE hInstance_;
@@ -50,7 +48,6 @@ private:
    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture_;
    std::unique_ptr<DirectX::SpriteBatch> textureSpriteBatch_;
    std::unique_ptr<DirectX::CommonStates> states_;
-   DirectX::SimpleMath::Vector2 screenPos_;
    DirectX::SimpleMath::Vector2 origin_;
    RECT tileRect_;
 

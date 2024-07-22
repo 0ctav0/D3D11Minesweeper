@@ -66,5 +66,11 @@ namespace DX {
       }
    }
    inline void ThrowIfFailed(HRESULT hr) { ThrowIfFailed(hr, ""); }
-}  // namespace DX
-#pragma once
+
+   template<typename... Args>
+   void Print(wchar_t const* format, Args... args) {
+      wchar_t buf[100];
+      swprintf_s(buf, format, args...);
+      OutputDebugStringW(buf);
+   }
+}
