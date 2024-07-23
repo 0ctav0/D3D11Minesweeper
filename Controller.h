@@ -11,8 +11,6 @@ public:
 
    Mouse::State* GetMouseState();
    template <typename MemberType>
-   bool MouseDown(MemberType Mouse::State::* memberName);
-   template <typename MemberType>
    bool MouseReleased(MemberType Mouse::State::* memberName);
 
    Keyboard::State* GetKeyboardState();

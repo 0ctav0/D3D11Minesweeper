@@ -4,6 +4,11 @@
 #include "Controller.h"
 #include "Cell.h"
 
+struct Pos {
+   int x;
+   int y;
+};
+
 // percentage of mines
 enum Difficulty {
    Easy = 10,
@@ -12,9 +17,14 @@ enum Difficulty {
    Impossible = 40
 };
 
+enum GameState {
+   Play, Win, Defeat
+};
+
 auto constexpr CELLS_X = 10;
 auto constexpr CELLS_Y = 8;
-int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Easy;
+int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Medium;
+auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
 class Game {
 public:
@@ -36,6 +46,8 @@ private:
    void ExploreMap(int originX, int originY);
    void FlagAt(int x, int y);
    bool IsCellSelected(int x, int y);
+   void Defeat();
+   void Win();
 
    HINSTANCE hInstance_;
    HWND hwnd_;
@@ -44,6 +56,8 @@ private:
 
    DeviceManager d3d_;
    Controller cntrl_;
+   DirectX::Keyboard::KeyboardStateTracker keyTracker_;
+
 
    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture_;
    std::unique_ptr<DirectX::SpriteBatch> textureSpriteBatch_;
@@ -51,8 +65,9 @@ private:
    DirectX::SimpleMath::Vector2 origin_;
    RECT tileRect_;
 
-   std::unordered_map<std::string, Cell> cells_;
+   std::array<std::array<Cell, CELLS_Y>, CELLS_X> cells_ = {};
 
-   int mouseX_, mouseY_ = 0;
-   DirectX::SimpleMath::Vector2 selectedCell_;
+   GameState gameState_ = GameState::Play;
+   unsigned opened_ = 0;
+   Pos selectedCell_ = {};
 };

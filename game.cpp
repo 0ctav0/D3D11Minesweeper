@@ -28,6 +28,7 @@ bool Game::ExitGame() {
 }
 
 void Game::OnMouseMove() {
+   if (gameState_ != GameState::Play) return;
    auto* mouse = cntrl_.GetMouseState();
    selectedCell_.x = mouse->x / Texture::CELL_WIDTH;
    selectedCell_.y = mouse->y / Texture::CELL_HEIGHT;
@@ -56,7 +57,7 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
 void Game::InitMines() {
    for (auto x = 0; x < CELLS_X; x++) {
       for (auto y = 0; y < CELLS_Y; y++) {
-         cells_.insert(std::pair{ std::format("{},{}", x, y), Cell() });
+         cells_[x][y] = Cell();
       }
    }
 
@@ -80,19 +81,28 @@ void Game::InitMines() {
 }
 
 Cell* Game::GetCell(int x, int y) {
-   return &cells_[std::format("{},{}", x, y)];
+   return &cells_[x][y];
 }
 
 void Game::OpenAt(int x, int y) {
    auto cell = GetCell(x, y);
-   if (!cell->flagged) cell->opened = true;
+   if (!cell->flagged) {
+      cell->opened = true;
+      if (cell->mined) {
+         Defeat();
+         return;
+      }
+      opened_++;
+      DX::Print(L"cell[%i,%i]; total opened = %i\n", x, y, opened_);
+      if (opened_ == NEED_TO_OPEN) Win();
+   }
 }
 
 void Game::IterateNear(int originX, int originY, std::function<void(int, int)> cb) {
    auto minX = std::max(0, originX - 1);
    auto minY = std::max(0, originY - 1);
-   auto maxX = std::min(CELLS_X, originX + 1);
-   auto maxY = std::min(CELLS_Y, originY + 1);
+   auto maxX = std::min(CELLS_X - 1, originX + 1);
+   auto maxY = std::min(CELLS_Y - 1, originY + 1);
    auto mines = 0;
    for (auto x = minX; x <= maxX; x++) {
       for (auto y = minY; y <= maxY; y++) {
@@ -103,9 +113,8 @@ void Game::IterateNear(int originX, int originY, std::function<void(int, int)> c
 
 void Game::ExploreMap(int originX, int originY) {
    auto cell = GetCell(originX, originY);
-   if (cell->opened) return;
+   if (cell->opened || cell->flagged) return;
    OpenAt(originX, originY);
-   //if (cell->mined) return;
    auto mines = 0;
    IterateNear(originX, originY, [this, &mines](int x, int y) {
       auto cell = GetCell(x, y);
@@ -127,6 +136,14 @@ void Game::FlagAt(int x, int y) {
 bool Game::IsCellSelected(int x, int y) {
    auto cell = GetCell(x, y);
    return selectedCell_.x == x && selectedCell_.y == y && !cell->flagged;
+}
+
+void Game::Defeat() {
+   gameState_ = GameState::Defeat;
+}
+
+void Game::Win() {
+   gameState_ = GameState::Win;
 }
 
 bool Game::LoadContent() {
@@ -156,13 +173,27 @@ bool Game::LoadContent() {
 
 void Game::Update(float dt) {
    cntrl_.BeforeUpdate();
-   auto* kb = cntrl_.GetKeyboardState();
+   auto kb = cntrl_.GetKeyboardState();
+   keyTracker_.Update(*kb);
 
-   if (kb->Escape) {
+   if (keyTracker_.IsKeyReleased(DirectX::Keyboard::Escape)) {
       ExitGame();
    }
 
+   if (keyTracker_.IsKeyReleased(DirectX::Keyboard::A)) {
+      auto size = 0, opened = 0;
+      for (auto begin = &cells_[0][0]; begin <= &cells_[CELLS_X - 1][CELLS_Y - 1]; begin++) {
+         size++;
+         if (begin->opened && !begin->mined) opened++;
+      }
+      DX::Print(L"Size = %i\n", size);
+      DX::Print(L"Opened = %i\n", opened);
+   }
+
+   if (gameState_ != GameState::Play) return;
+
    if (cntrl_.MouseReleased(&DirectX::Mouse::State::leftButton)) {
+      DX::Print(L"Click at %i,%i\n", selectedCell_.x, selectedCell_.y);
       ExploreMap(selectedCell_.x, selectedCell_.y);
    }
 
