@@ -2,6 +2,7 @@
 #include "DeviceManager.h"
 
 bool DeviceManager::Init(HWND hwnd, long width, long height) {
+   Log::Info("DeviceManager::Init start");
    D3D_FEATURE_LEVEL featureLevels[] = {
      D3D_FEATURE_LEVEL_11_1,
      D3D_FEATURE_LEVEL_11_0,
@@ -46,9 +47,9 @@ bool DeviceManager::Init(HWND hwnd, long width, long height) {
 
    DX::ThrowIfFailed(hr, "Failed to create the Direct3D device!");
 
-   DX::ThrowIfFailed(device.As(&device_));
-   DX::ThrowIfFailed(context.As(&ctx_));
-   DX::ThrowIfFailed(swapChain.As(&swapChain_));
+   DX::ThrowIfFailed(device.As(&device_), "Failed to set device");
+   DX::ThrowIfFailed(context.As(&ctx_), "Failed to set context");
+   DX::ThrowIfFailed(swapChain.As(&swapChain_), "Failed to set swap chain");
 
    ID3D11Texture2D* backBufferTexture;
    hr = swapChain_->GetBuffer(0, _uuidof(ID3D11Texture2D),
@@ -70,6 +71,8 @@ bool DeviceManager::Init(HWND hwnd, long width, long height) {
    viewport.Height = static_cast<float>(height);
 
    ctx_->RSSetViewports(1, &viewport);
+
+   Log::Info("DeviceManager::Init end");
 
    return true;
 }

@@ -17,6 +17,10 @@ namespace Texture {
    auto constexpr NUMBER_BOTTOM_AT = 158;
 }
 
+Game::~Game() {
+   Log::file.close();
+}
+
 void Game::GetDefaultSize(long& width, long& height) {
    width = CELLS_X * Texture::CELL_WIDTH;
    height = CELLS_Y * Texture::CELL_HEIGHT;
@@ -43,6 +47,8 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
 
    width_ = dimensions.right - dimensions.left;
    height_ = dimensions.bottom - dimensions.top;
+
+   Log::file.open("log.txt");
 
    d3d_ = DeviceManager();
    auto d3dSuccess = d3d_.Init(hwnd, width_, height_);
@@ -147,15 +153,17 @@ void Game::Win() {
 }
 
 bool Game::LoadContent() {
+   Log::Info("Game::LoadContent start");
+
    textureSpriteBatch_ = std::make_unique<DirectX::DX11::SpriteBatch>(d3d_.ctx_.Get());
    states_ = std::make_unique<DirectX::DX11::CommonStates>(d3d_.device_.Get());
 
    Microsoft::WRL::ComPtr<ID3D11Resource> resource;
    DX::ThrowIfFailed(DirectX::CreateWICTextureFromFile(d3d_.device_.Get(),
-      Texture::FILENAME, resource.GetAddressOf(), texture_.ReleaseAndGetAddressOf()));
+      Texture::FILENAME, resource.GetAddressOf(), texture_.ReleaseAndGetAddressOf()), "Failed to create a texture from a file");
 
    Microsoft::WRL::ComPtr<ID3D11Texture2D> cell;
-   DX::ThrowIfFailed(resource.As(&cell));
+   DX::ThrowIfFailed(resource.As(&cell), "Failed to set a resource");
 
    CD3D11_TEXTURE2D_DESC cellDesc;
    cell->GetDesc(&cellDesc);
@@ -167,6 +175,8 @@ bool Game::LoadContent() {
    tileRect_.right = cellDesc.Width * CELLS_X;
    tileRect_.top = 0;
    tileRect_.bottom = cellDesc.Height * CELLS_Y;
+
+   Log::Info("Game::LoadContent end");
 
    return true;
 }

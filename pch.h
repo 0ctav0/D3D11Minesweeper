@@ -45,6 +45,8 @@
 #include <SpriteBatch.h>
 #include "WICTextureLoader.h"
 
+#include <iostream>
+#include <fstream>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -59,14 +61,24 @@
 #include <functional>
 #include <array>
 
+namespace Log {
+   inline std::ofstream file;
+   inline void Info(char const* const message) {
+      file << "Info: " << message << std::endl;
+   }
+   inline void Error(char const* const message) {
+      file << "Error: " << message << std::endl;
+   }
+}
+
 namespace DX {
    inline void ThrowIfFailed(HRESULT hr, char const* const message) {
       if (FAILED(hr)) {
          // Set a breakpoint on this line to catch DirectX API errors
+         Log::Error(message);
          throw std::exception(message);
       }
    }
-   inline void ThrowIfFailed(HRESULT hr) { ThrowIfFailed(hr, ""); }
 
    template<typename... Args>
    void Print(wchar_t const* format, Args... args) {

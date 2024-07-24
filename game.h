@@ -28,6 +28,7 @@ auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
 class Game {
 public:
+   ~Game();
    void GetDefaultSize(long& width, long& height);
    bool ExitGame();
 
