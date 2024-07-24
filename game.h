@@ -11,9 +11,9 @@ struct Pos {
 // percentage of mines
 enum Difficulty {
    Easy = 10,
-   Medium = 20,
-   Hard = 30,
-   Impossible = 40
+   Medium = 15,
+   Hard = 20,
+   Impossible = 25
 };
 
 enum GameState {
@@ -22,7 +22,7 @@ enum GameState {
 
 auto constexpr CELLS_X = 10;
 auto constexpr CELLS_Y = 8;
-int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Easy;
+int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Medium;
 auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
 class Game {
@@ -39,7 +39,8 @@ public:
    void Render();
 
 private:
-   void InitMines();
+   void InitCells();
+   void InitMines(int x, int y);
    Cell* GetCell(int x, int y);
    void OpenAt(int x, int y);
    void IterateAll(std::function<void(Cell* cell)> cb);
@@ -82,5 +83,6 @@ private:
 
    GameState gameState_ = GameState::Play;
    unsigned opened_ = 0;
+   bool hasOpened_ = false;
    Pos selectedCell_ = {};
 };

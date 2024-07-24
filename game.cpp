@@ -69,18 +69,20 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
    defeatSound_ = std::make_unique<DirectX::SoundEffect>(audioEngine_.get(), L"sounds/defeat.wav");
    winSound_ = std::make_unique<DirectX::SoundEffect>(audioEngine_.get(), L"sounds/win.wav");
 
-   InitMines();
+   InitCells();
 
    return d3dSuccess && LoadContent();
 }
 
-void Game::InitMines() {
+void Game::InitCells() {
    for (auto x = 0; x < CELLS_X; x++) {
       for (auto y = 0; y < CELLS_Y; y++) {
          cells_[x][y] = Cell();
       }
    }
+}
 
+void Game::InitMines(int originX, int originY) {
    std::random_device dev;
    std::mt19937 rng(dev());
    std::uniform_int_distribution<std::mt19937::result_type> distX(0,
@@ -93,10 +95,9 @@ void Game::InitMines() {
       auto x = distX(rng);
       auto y = distY(rng);
       auto cell = GetCell(x, y);
-      if (!cell->mined) {
-         cell->mined = true;
-         i++;
-      }
+      if (cell->mined || (originX == x && originY == y)) continue;
+      cell->mined = true;
+      i++;
    }
 }
 
@@ -109,6 +110,8 @@ void Game::OpenAt(int x, int y) {
    if (cell->IsMarked() || cell->opened) return;
 
    cell->opened = true;
+   if (!hasOpened_) InitMines(x, y);
+   hasOpened_ = true;
 
    if (cell->mined) {
       Defeat();
