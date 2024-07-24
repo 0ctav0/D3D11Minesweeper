@@ -25,6 +25,17 @@ auto constexpr CELLS_Y = 16;
 int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Medium;
 auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
+const std::array<DirectX::XMVECTORF32, 8> NUMBER_TINTS = {
+   DirectX::Colors::Black,
+   DirectX::Colors::Magenta,
+   DirectX::Colors::Coral,
+   DirectX::Colors::Khaki,
+   DirectX::Colors::AliceBlue,
+   DirectX::Colors::Beige,
+   DirectX::Colors::DarkOrchid,
+   DirectX::Colors::Honeydew,
+};
+
 class Game {
 public:
    ~Game();

@@ -304,12 +304,9 @@ void Game::Render() {
          DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH), float(y * CELL_HEIGHT) };
          auto cell = GetCell(x, y);
          if (!cell->opened) {
-            if (cell->pressed) {
-               continue;
-            }
-            auto rect = &Texture::CELL_RECT;
-            textureSpriteBatch_->Draw(texture_.Get(), at, rect,
-               DirectX::Colors::White, 0.f, origin_, Texture::SCALING);
+            auto color = cell->pressed ? DirectX::Colors::Red : DirectX::Colors::White;
+            textureSpriteBatch_->Draw(texture_.Get(), at, &Texture::CELL_RECT,
+               color, 0.f, origin_, Texture::SCALING);
             if (cell->IsMarked()) {
                DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + 6,
                                        float(y * CELL_HEIGHT) + 2 };
@@ -329,7 +326,7 @@ void Game::Render() {
             auto left = (cell->minesNear - 1) * Texture::NUMBER_WIDTH;
             auto right = cell->minesNear * Texture::NUMBER_WIDTH;
             RECT rc = { left, Texture::NUMBER_TOP_AT, right, Texture::NUMBER_BOTTOM_AT };
-            textureSpriteBatch_->Draw(texture_.Get(), at, &rc, DirectX::Colors::White, 0.f, origin_, Texture::SCALING * Texture::SCALING);
+            textureSpriteBatch_->Draw(texture_.Get(), at, &rc, NUMBER_TINTS[cell->minesNear - 1], 0.f, origin_, Texture::SCALING * Texture::SCALING);
          }
       }
    }
