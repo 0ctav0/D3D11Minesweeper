@@ -72,11 +72,11 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>C:\Program Files\DirectXTK\Inc;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files\DirectXTK\Bin\Desktop_2022\x64\Debug;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\Program Files\DirectXTK\Bin\Desktop_2022_Win10\x64\Debug;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>C:\Program Files\DirectXTK\Inc;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files\DirectXTK\Bin\Desktop_2022\x64\Release;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\Program Files\DirectXTK\Bin\Desktop_2022_Win10\x64\Release;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>

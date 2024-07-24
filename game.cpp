@@ -19,6 +19,9 @@ namespace Texture {
 
 Game::~Game() {
    Log::file.close();
+   if (audioEngine_) {
+      audioEngine_->Suspend();
+   }
 }
 
 void Game::GetDefaultSize(long& width, long& height) {
@@ -54,6 +57,15 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
    auto d3dSuccess = d3d_.Init(hwnd, width_, height_);
    cntrl_ = Controller();
    auto cntrlSuccess = cntrl_.Init(hwnd);
+
+   DirectX::AUDIO_ENGINE_FLAGS eflags = DirectX::AudioEngine_Default;
+#ifdef _DEBUG
+   eflags |= DirectX::AudioEngine_Debug;
+#endif
+   audioEngine_ = std::make_unique<DirectX::AudioEngine>(eflags);
+
+   defeatSound_ = std::make_unique<DirectX::SoundEffect>(audioEngine_.get(), L"sounds/defeat.wav");
+   winSound_ = std::make_unique<DirectX::SoundEffect>(audioEngine_.get(), L"sounds/win.wav");
 
    InitMines();
 
@@ -146,10 +158,12 @@ bool Game::IsCellSelected(int x, int y) {
 
 void Game::Defeat() {
    gameState_ = GameState::Defeat;
+   defeatSound_->Play();
 }
 
 void Game::Win() {
    gameState_ = GameState::Win;
+   winSound_->Play();
 }
 
 bool Game::LoadContent() {
@@ -185,6 +199,9 @@ void Game::Update(float dt) {
    cntrl_.BeforeUpdate();
    auto kb = cntrl_.GetKeyboardState();
    keyTracker_.Update(*kb);
+   if (!audioEngine_->Update()) {
+
+   }
 
    if (keyTracker_.IsKeyReleased(DirectX::Keyboard::Escape)) {
       ExitGame();

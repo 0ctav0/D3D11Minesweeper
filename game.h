@@ -58,7 +58,9 @@ private:
    DeviceManager d3d_;
    Controller cntrl_;
    DirectX::Keyboard::KeyboardStateTracker keyTracker_;
-
+   std::unique_ptr<DirectX::AudioEngine> audioEngine_;
+   std::unique_ptr<DirectX::SoundEffect> defeatSound_;
+   std::unique_ptr<DirectX::SoundEffect> winSound_;
 
    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture_;
    std::unique_ptr<DirectX::SpriteBatch> textureSpriteBatch_;
