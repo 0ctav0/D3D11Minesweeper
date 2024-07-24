@@ -1,7 +1,10 @@
 #pragma once
 
 struct Cell {
-   bool opened = false, flagged = false, mined = false;
+   bool opened : 1;
+   bool flagged : 1;
+   bool mined : 1;
+   bool pressed : 1;
    // -1 not checked cell
-   int minesNear = -1;
+   unsigned char minesNear : 4;
 };

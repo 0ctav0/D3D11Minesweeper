@@ -139,7 +139,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Controller.cpp" />
     <ClCompile Include="DeviceManager.cpp" />
     <ClCompile Include="game.cpp" />
     <ClCompile Include="main.cpp" />
@@ -147,7 +146,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cell.h" />
-    <ClInclude Include="Controller.h" />
     <ClInclude Include="DeviceManager.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="pch.h" />

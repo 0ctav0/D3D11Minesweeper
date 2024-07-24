@@ -1,7 +1,6 @@
 #pragma once
 
 #include "DeviceManager.h"
-#include "Controller.h"
 #include "Cell.h"
 
 struct Pos {
@@ -23,7 +22,7 @@ enum GameState {
 
 auto constexpr CELLS_X = 10;
 auto constexpr CELLS_Y = 8;
-int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Medium;
+int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Easy;
 auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
 class Game {
@@ -43,8 +42,13 @@ private:
    void InitMines();
    Cell* GetCell(int x, int y);
    void OpenAt(int x, int y);
+   void IterateAll(std::function<void(Cell* cell)> cb);
    void IterateNear(int originX, int originY, std::function<void(int, int)> cb);
    void ExploreMap(int originX, int originY);
+   void OpenNearForced(int originX, int originY);
+   void PressedAround(int originX, int originY);
+   void UnpressedAll();
+   void ClickAt(int x, int y);
    void FlagAt(int x, int y);
    bool IsCellSelected(int x, int y);
    void Defeat();
@@ -56,8 +60,14 @@ private:
    long height_;
 
    DeviceManager d3d_;
-   Controller cntrl_;
+
+   std::unique_ptr<DirectX::Keyboard> keyboard_;
    DirectX::Keyboard::KeyboardStateTracker keyTracker_;
+
+   std::unique_ptr<DirectX::Mouse> mouse_;
+   DirectX::Mouse::Mouse::ButtonStateTracker mouseTracker_;
+   bool leftHeld_ = false;
+
    std::unique_ptr<DirectX::AudioEngine> audioEngine_;
    std::unique_ptr<DirectX::SoundEffect> defeatSound_;
    std::unique_ptr<DirectX::SoundEffect> winSound_;

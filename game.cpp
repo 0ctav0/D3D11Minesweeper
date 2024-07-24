@@ -1,6 +1,5 @@
 ﻿#include "pch.h"
 #include "DeviceManager.h"
-#include "Controller.h"
 #include "Game.h"
 
 namespace Texture {
@@ -36,9 +35,9 @@ bool Game::ExitGame() {
 
 void Game::OnMouseMove() {
    if (gameState_ != GameState::Play) return;
-   auto* mouse = cntrl_.GetMouseState();
-   selectedCell_.x = mouse->x / Texture::CELL_WIDTH;
-   selectedCell_.y = mouse->y / Texture::CELL_HEIGHT;
+   auto mouse = mouse_->GetState();
+   selectedCell_.x = mouse.x / Texture::CELL_WIDTH;
+   selectedCell_.y = mouse.y / Texture::CELL_HEIGHT;
 }
 
 bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
@@ -55,8 +54,10 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
 
    d3d_ = DeviceManager();
    auto d3dSuccess = d3d_.Init(hwnd, width_, height_);
-   cntrl_ = Controller();
-   auto cntrlSuccess = cntrl_.Init(hwnd);
+
+   keyboard_ = std::make_unique<DirectX::Keyboard>();
+   mouse_ = std::make_unique<DirectX::Mouse>();
+   mouse_->SetWindow(hwnd);
 
    DirectX::AUDIO_ENGINE_FLAGS eflags = DirectX::AudioEngine_Default;
 #ifdef _DEBUG
@@ -69,7 +70,7 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
 
    InitMines();
 
-   return d3dSuccess && cntrlSuccess && LoadContent();
+   return d3dSuccess && LoadContent();
 }
 
 void Game::InitMines() {
@@ -104,15 +105,29 @@ Cell* Game::GetCell(int x, int y) {
 
 void Game::OpenAt(int x, int y) {
    auto cell = GetCell(x, y);
-   if (!cell->flagged) {
-      cell->opened = true;
-      if (cell->mined) {
-         Defeat();
-         return;
-      }
-      opened_++;
-      DX::Print(L"cell[%i,%i]; total opened = %i\n", x, y, opened_);
-      if (opened_ == NEED_TO_OPEN) Win();
+   if (cell->flagged || cell->opened) return;
+
+   cell->opened = true;
+
+   if (cell->mined) {
+      Defeat();
+      return;
+   }
+   auto mines = 0;
+   IterateNear(x, y, [this, &mines](int x, int y) {
+      auto cell = GetCell(x, y);
+      mines += cell->mined ? 1 : 0;
+      });
+   cell->minesNear = mines;
+
+   opened_++;
+   DX::Print(L"cell[%i,%i]; total opened = %i\n", x, y, opened_);
+   if (opened_ == NEED_TO_OPEN) Win();
+}
+
+void Game::IterateAll(std::function<void(Cell* cell)> cb) {
+   for (auto begin = &cells_[0][0]; begin <= &cells_[CELLS_X - 1][CELLS_Y - 1]; begin++) {
+      cb(begin);
    }
 }
 
@@ -133,17 +148,51 @@ void Game::ExploreMap(int originX, int originY) {
    auto cell = GetCell(originX, originY);
    if (cell->opened || cell->flagged) return;
    OpenAt(originX, originY);
-   auto mines = 0;
-   IterateNear(originX, originY, [this, &mines](int x, int y) {
-      auto cell = GetCell(x, y);
-      mines += cell->mined ? 1 : 0;
-      });
-   cell->minesNear = mines;
-   if (mines == 0) {
-      IterateNear(originX, originY, [this, &mines](int x, int y) {
+   if (cell->minesNear == 0) {
+      IterateNear(originX, originY, [this](int x, int y) {
          ExploreMap(x, y);
          });
    }
+}
+
+void Game::OpenNearForced(int originX, int originY) {
+   auto cell = GetCell(originX, originY);
+   if (!(cell->opened && cell->minesNear > 0)) return;
+   auto flagged = 0;
+   IterateNear(originX, originY, [this, &flagged](int x, int y) {
+      auto cell = GetCell(x, y);
+      flagged += cell->flagged ? 1 : 0;
+      });
+   if (cell->minesNear == flagged) {
+      IterateNear(originX, originY, [this](int x, int y) {
+         ExploreMap(x, y);
+         });
+   }
+}
+
+void Game::PressedAround(int originX, int originY) {
+   auto cell = GetCell(originX, originY);
+   cell->pressed = cell->flagged ? false : true;
+   if (cell->minesNear > 0) {
+      IterateNear(originX, originY, [this](int x, int y) {
+         auto cell = GetCell(x, y);
+         cell->pressed = cell->flagged ? false : true;
+         });
+   }
+}
+
+void Game::UnpressedAll() {
+   IterateAll([](Cell* cell) {
+      cell->pressed = false;
+      });
+}
+
+void Game::ClickAt(int x, int y) {
+   auto cell = GetCell(x, y);
+   if (cell->opened && cell->minesNear > 0) {
+      return OpenNearForced(x, y);
+   }
+   ExploreMap(x, y);
 }
 
 void Game::FlagAt(int x, int y) {
@@ -196,9 +245,11 @@ bool Game::LoadContent() {
 }
 
 void Game::Update(float dt) {
-   cntrl_.BeforeUpdate();
-   auto kb = cntrl_.GetKeyboardState();
-   keyTracker_.Update(*kb);
+   auto kb = keyboard_->GetState();
+   auto mouseState = mouse_->GetState();
+   keyTracker_.Update(kb);
+   mouseTracker_.Update(mouseState);
+
    if (!audioEngine_->Update()) {
 
    }
@@ -207,28 +258,24 @@ void Game::Update(float dt) {
       ExitGame();
    }
 
-   if (keyTracker_.IsKeyReleased(DirectX::Keyboard::A)) {
-      auto size = 0, opened = 0;
-      for (auto begin = &cells_[0][0]; begin <= &cells_[CELLS_X - 1][CELLS_Y - 1]; begin++) {
-         size++;
-         if (begin->opened && !begin->mined) opened++;
-      }
-      DX::Print(L"Size = %i\n", size);
-      DX::Print(L"Opened = %i\n", opened);
-   }
-
    if (gameState_ != GameState::Play) return;
 
-   if (cntrl_.MouseReleased(&DirectX::Mouse::State::leftButton)) {
-      DX::Print(L"Click at %i,%i\n", selectedCell_.x, selectedCell_.y);
-      ExploreMap(selectedCell_.x, selectedCell_.y);
+   leftHeld_ = mouseTracker_.leftButton == DirectX::Mouse::ButtonStateTracker::HELD;
+
+   UnpressedAll();
+
+
+   if (leftHeld_) {
+      PressedAround(selectedCell_.x, selectedCell_.y);
    }
 
-   if (cntrl_.MouseReleased(&DirectX::Mouse::State::rightButton)) {
+   if (mouseTracker_.leftButton == DirectX::Mouse::ButtonStateTracker::RELEASED) {
+      ClickAt(selectedCell_.x, selectedCell_.y);
+   }
+
+   if (mouseTracker_.rightButton == DirectX::Mouse::ButtonStateTracker::RELEASED) {
       FlagAt(selectedCell_.x, selectedCell_.y);
    }
-
-   cntrl_.AfterUpdate();
 }
 
 void Game::Render() {
@@ -246,8 +293,10 @@ void Game::Render() {
          DirectX::XMFLOAT2 at = { float(x * Texture::CELL_WIDTH), float(y * Texture::CELL_HEIGHT) };
          auto cell = GetCell(x, y);
          if (!cell->opened) {
-            RECT* rect = IsCellSelected(x, y) ? &Texture::SELECTED_CELL_RECT
-               : &Texture::CELL_RECT;
+            if (cell->pressed) {
+               continue;
+            }
+            auto rect = &Texture::CELL_RECT;
             textureSpriteBatch_->Draw(texture_.Get(), at, rect,
                DirectX::Colors::White, 0.f, origin_);
             if (cell->flagged) {
