@@ -15,7 +15,14 @@ namespace Texture {
    RECT QUESTION_MARK_RECT = { CELL_WIDTH * 4, 0, CELL_WIDTH * 5, CELL_HEIGHT };
    auto constexpr NUMBER_TOP_AT = 96;
    auto constexpr NUMBER_BOTTOM_AT = 158;
-}
+
+   auto constexpr SCALING = .5f;
+};
+
+auto constexpr CELL_WIDTH = Texture::CELL_WIDTH * Texture::SCALING;
+auto constexpr CELL_HEIGHT = Texture::CELL_HEIGHT * Texture::SCALING;
+auto constexpr NUMBER_WIDTH_HALF = CELL_WIDTH / 2 * Texture::SCALING;
+auto constexpr NUMBER_HEIGHT_HALF = CELL_HEIGHT / 2 * Texture::SCALING;
 
 Game::~Game() {
    Log::file.close();
@@ -25,8 +32,8 @@ Game::~Game() {
 }
 
 void Game::GetDefaultSize(long& width, long& height) {
-   width = CELLS_X * Texture::CELL_WIDTH;
-   height = CELLS_Y * Texture::CELL_HEIGHT;
+   width = CELLS_X * CELL_WIDTH;
+   height = CELLS_Y * CELL_HEIGHT;
 }
 
 bool Game::ExitGame() {
@@ -37,8 +44,8 @@ bool Game::ExitGame() {
 void Game::OnMouseMove() {
    if (gameState_ != GameState::Play) return;
    auto mouse = mouse_->GetState();
-   selectedCell_.x = mouse.x / Texture::CELL_WIDTH;
-   selectedCell_.y = mouse.y / Texture::CELL_HEIGHT;
+   selectedCell_.x = mouse.x / CELL_WIDTH;
+   selectedCell_.y = mouse.y / CELL_HEIGHT;
 }
 
 bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
@@ -294,7 +301,7 @@ void Game::Render() {
 
    for (auto x = 0; x < CELLS_X; x++) {
       for (auto y = 0; y < CELLS_Y; y++) {
-         DirectX::XMFLOAT2 at = { float(x * Texture::CELL_WIDTH), float(y * Texture::CELL_HEIGHT) };
+         DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH), float(y * CELL_HEIGHT) };
          auto cell = GetCell(x, y);
          if (!cell->opened) {
             if (cell->pressed) {
@@ -302,31 +309,27 @@ void Game::Render() {
             }
             auto rect = &Texture::CELL_RECT;
             textureSpriteBatch_->Draw(texture_.Get(), at, rect,
-               DirectX::Colors::White, 0.f, origin_);
+               DirectX::Colors::White, 0.f, origin_, Texture::SCALING);
             if (cell->IsMarked()) {
-               DirectX::XMFLOAT2 at = { float(x * Texture::CELL_WIDTH) + 6,
-                                       float(y * Texture::CELL_HEIGHT) + 2 };
+               DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + 6,
+                                       float(y * CELL_HEIGHT) + 2 };
                auto texture = cell->state == RCellState::Flagged ? &Texture::FLAG_RECT : &Texture::QUESTION_MARK_RECT;
                textureSpriteBatch_->Draw(texture_.Get(), at, texture,
-                  DirectX::Colors::White, 0.f, origin_);
+                  DirectX::Colors::White, 0.f, origin_, Texture::SCALING);
             }
          }
          else if (cell->mined) {
             textureSpriteBatch_->Draw(texture_.Get(), at, &Texture::MINE_RECT,
-               DirectX::Colors::White, 0.f, origin_);
+               DirectX::Colors::White, 0.f, origin_, Texture::SCALING);
          }
          else if (cell->minesNear > 0) {
-            auto constexpr scaling = 0.5f;
-            auto constexpr numberWidth = Texture::NUMBER_WIDTH * scaling;
-            auto constexpr numberHeight = Texture::NUMBER_HEIGHT * scaling;
-            auto constexpr numberWidthHalf = numberWidth / 2;
-            auto constexpr numberHeightHalf = numberHeight / 2;
-            DirectX::XMFLOAT2 at = { float(x * Texture::CELL_WIDTH) + numberWidthHalf,
-                                    float(y * Texture::CELL_HEIGHT) + numberHeightHalf };
+
+            DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + NUMBER_WIDTH_HALF,
+                                    float(y * CELL_HEIGHT) + NUMBER_HEIGHT_HALF };
             auto left = (cell->minesNear - 1) * Texture::NUMBER_WIDTH;
             auto right = cell->minesNear * Texture::NUMBER_WIDTH;
             RECT rc = { left, Texture::NUMBER_TOP_AT, right, Texture::NUMBER_BOTTOM_AT };
-            textureSpriteBatch_->Draw(texture_.Get(), at, &rc, DirectX::Colors::White, 0.f, origin_, scaling);
+            textureSpriteBatch_->Draw(texture_.Get(), at, &rc, DirectX::Colors::White, 0.f, origin_, Texture::SCALING * Texture::SCALING);
          }
       }
    }

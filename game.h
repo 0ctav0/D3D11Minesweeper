@@ -20,8 +20,8 @@ enum GameState {
    Play, Win, Defeat
 };
 
-auto constexpr CELLS_X = 10;
-auto constexpr CELLS_Y = 8;
+auto constexpr CELLS_X = 20;
+auto constexpr CELLS_Y = 16;
 int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Medium;
 auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
