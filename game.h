@@ -49,7 +49,7 @@ private:
    void PressedAround(int originX, int originY);
    void UnpressedAll();
    void ClickAt(int x, int y);
-   void FlagAt(int x, int y);
+   void MarkAt(int x, int y);
    bool IsCellSelected(int x, int y);
    void Defeat();
    void Win();

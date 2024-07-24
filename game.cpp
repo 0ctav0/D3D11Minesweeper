@@ -12,6 +12,7 @@ namespace Texture {
    RECT SELECTED_CELL_RECT = { CELL_WIDTH, 0, CELL_WIDTH * 2, CELL_HEIGHT };
    RECT FLAG_RECT = { CELL_WIDTH * 2, 0, CELL_WIDTH * 3, CELL_HEIGHT };
    RECT MINE_RECT = { CELL_WIDTH * 3, 0, CELL_WIDTH * 4, CELL_HEIGHT };
+   RECT QUESTION_MARK_RECT = { CELL_WIDTH * 4, 0, CELL_WIDTH * 5, CELL_HEIGHT };
    auto constexpr NUMBER_TOP_AT = 96;
    auto constexpr NUMBER_BOTTOM_AT = 158;
 }
@@ -105,7 +106,7 @@ Cell* Game::GetCell(int x, int y) {
 
 void Game::OpenAt(int x, int y) {
    auto cell = GetCell(x, y);
-   if (cell->flagged || cell->opened) return;
+   if (cell->IsMarked() || cell->opened) return;
 
    cell->opened = true;
 
@@ -146,7 +147,7 @@ void Game::IterateNear(int originX, int originY, std::function<void(int, int)> c
 
 void Game::ExploreMap(int originX, int originY) {
    auto cell = GetCell(originX, originY);
-   if (cell->opened || cell->flagged) return;
+   if (cell->opened || cell->IsMarked()) return;
    OpenAt(originX, originY);
    if (cell->minesNear == 0) {
       IterateNear(originX, originY, [this](int x, int y) {
@@ -161,7 +162,7 @@ void Game::OpenNearForced(int originX, int originY) {
    auto flagged = 0;
    IterateNear(originX, originY, [this, &flagged](int x, int y) {
       auto cell = GetCell(x, y);
-      flagged += cell->flagged ? 1 : 0;
+      flagged += cell->state == RCellState::Flagged ? 1 : 0;
       });
    if (cell->minesNear == flagged) {
       IterateNear(originX, originY, [this](int x, int y) {
@@ -172,11 +173,11 @@ void Game::OpenNearForced(int originX, int originY) {
 
 void Game::PressedAround(int originX, int originY) {
    auto cell = GetCell(originX, originY);
-   cell->pressed = cell->flagged ? false : true;
+   cell->pressed = cell->IsMarked() ? false : true;
    if (cell->minesNear > 0) {
       IterateNear(originX, originY, [this](int x, int y) {
          auto cell = GetCell(x, y);
-         cell->pressed = cell->flagged ? false : true;
+         cell->pressed = cell->IsMarked() ? false : true;
          });
    }
 }
@@ -195,14 +196,14 @@ void Game::ClickAt(int x, int y) {
    ExploreMap(x, y);
 }
 
-void Game::FlagAt(int x, int y) {
+void Game::MarkAt(int x, int y) {
    auto cell = GetCell(x, y);
-   if (!cell->opened) cell->flagged = !cell->flagged;
+   if (!cell->opened) cell->ToggleState();
 }
 
 bool Game::IsCellSelected(int x, int y) {
    auto cell = GetCell(x, y);
-   return selectedCell_.x == x && selectedCell_.y == y && !cell->flagged;
+   return selectedCell_.x == x && selectedCell_.y == y && !cell->IsMarked();
 }
 
 void Game::Defeat() {
@@ -274,7 +275,7 @@ void Game::Update(float dt) {
    }
 
    if (mouseTracker_.rightButton == DirectX::Mouse::ButtonStateTracker::RELEASED) {
-      FlagAt(selectedCell_.x, selectedCell_.y);
+      MarkAt(selectedCell_.x, selectedCell_.y);
    }
 }
 
@@ -299,10 +300,11 @@ void Game::Render() {
             auto rect = &Texture::CELL_RECT;
             textureSpriteBatch_->Draw(texture_.Get(), at, rect,
                DirectX::Colors::White, 0.f, origin_);
-            if (cell->flagged) {
+            if (cell->IsMarked()) {
                DirectX::XMFLOAT2 at = { float(x * Texture::CELL_WIDTH) + 6,
                                        float(y * Texture::CELL_HEIGHT) + 2 };
-               textureSpriteBatch_->Draw(texture_.Get(), at, &Texture::FLAG_RECT,
+               auto texture = cell->state == RCellState::Flagged ? &Texture::FLAG_RECT : &Texture::QUESTION_MARK_RECT;
+               textureSpriteBatch_->Draw(texture_.Get(), at, texture,
                   DirectX::Colors::White, 0.f, origin_);
             }
          }
