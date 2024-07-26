@@ -13,6 +13,7 @@ namespace Texture {
    RECT FLAG_RECT = { CELL_WIDTH * 2, 0, CELL_WIDTH * 3, CELL_HEIGHT };
    RECT MINE_RECT = { CELL_WIDTH * 3, 0, CELL_WIDTH * 4, CELL_HEIGHT };
    RECT QUESTION_MARK_RECT = { CELL_WIDTH * 4, 0, CELL_WIDTH * 5, CELL_HEIGHT };
+
    auto constexpr NUMBER_TOP_AT = 96;
    auto constexpr NUMBER_BOTTOM_AT = 158;
 
@@ -24,6 +25,20 @@ auto constexpr CELL_HEIGHT = Texture::CELL_HEIGHT * Texture::SCALING;
 auto constexpr NUMBER_WIDTH_HALF = CELL_WIDTH / 2 * Texture::SCALING;
 auto constexpr NUMBER_HEIGHT_HALF = CELL_HEIGHT / 2 * Texture::SCALING;
 
+namespace UI {
+   auto constexpr TOP_PANEL_WIDTH = CELLS_X * CELL_WIDTH;
+   auto constexpr TOP_PANEL_HEIGHT = Texture::CELL_HEIGHT * 2;
+   RECT TOP_LEFT_CORNER = { 0, 0, 5, 5 };
+   RECT TOP_RIGHT_CORNER = { 60, 0, 64, 5 };
+   RECT BOTTOM_LEFT_CORNER = { 0, 60, 5, 64 };
+   RECT BOTTOM_RIGHT_CORNER = { 60, 60, 64, 64 };
+   RECT TOP_HORIZONTAL_LINE = { 5, 0, 6, 5 };
+   RECT BOTTOM_HORIZONTAL_LINE = { 5, 60, 6, 64 };
+   RECT LEFT_VERTICAL_LINE = { 0, 5, 5, 6 };
+   RECT RIGHT_VERTICAL_LINE = { 60, 5, 64, 6 };
+   RECT BACKGROUND_RECT = { 5,5, 6,6 };
+}
+
 Game::~Game() {
    Log::file.close();
    if (audioEngine_) {
@@ -33,7 +48,7 @@ Game::~Game() {
 
 void Game::GetDefaultSize(long& width, long& height) {
    width = CELLS_X * CELL_WIDTH;
-   height = CELLS_Y * CELL_HEIGHT;
+   height = CELLS_Y * CELL_HEIGHT + UI::TOP_PANEL_HEIGHT;
 }
 
 bool Game::ExitGame() {
@@ -44,8 +59,11 @@ bool Game::ExitGame() {
 void Game::OnMouseMove() {
    if (gameState_ != GameState::Play) return;
    auto mouse = mouse_->GetState();
-   selectedCell_.x = mouse.x / CELL_WIDTH;
-   selectedCell_.y = mouse.y / CELL_HEIGHT;
+   int x = mouse.x / CELL_WIDTH;
+   int y = std::floor((mouse.y - UI::TOP_PANEL_HEIGHT) / CELL_HEIGHT);
+   DX::Print(L"[%i,%i]", x, y);
+   selectedCell_.x = x;
+   selectedCell_.y = y;
 }
 
 bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
@@ -132,7 +150,6 @@ void Game::OpenAt(int x, int y) {
    cell->minesNear = mines;
 
    opened_++;
-   DX::Print(L"cell[%i,%i]; total opened = %i\n", x, y, opened_);
    if (opened_ == NEED_TO_OPEN) Win();
 }
 
@@ -245,11 +262,6 @@ bool Game::LoadContent() {
    origin_.x = 0;
    origin_.y = 0;
 
-   tileRect_.left = 0;
-   tileRect_.right = cellDesc.Width * CELLS_X;
-   tileRect_.top = 0;
-   tileRect_.bottom = cellDesc.Height * CELLS_Y;
-
    Log::Info("Game::LoadContent end");
 
    return true;
@@ -277,31 +289,79 @@ void Game::Update(float dt) {
 
 
    if (leftHeld_) {
-      PressedAround(selectedCell_.x, selectedCell_.y);
+      if (selectedCell_.IsInBounds()) PressedAround(selectedCell_.x, selectedCell_.y);
    }
 
    if (mouseTracker_.leftButton == DirectX::Mouse::ButtonStateTracker::RELEASED) {
-      ClickAt(selectedCell_.x, selectedCell_.y);
+      if (selectedCell_.IsInBounds()) ClickAt(selectedCell_.x, selectedCell_.y);
    }
 
    if (mouseTracker_.rightButton == DirectX::Mouse::ButtonStateTracker::RELEASED) {
-      MarkAt(selectedCell_.x, selectedCell_.y);
+      if (selectedCell_.IsInBounds()) MarkAt(selectedCell_.x, selectedCell_.y);
    }
 }
 
-void Game::Render() {
-   if (d3d_.ctx_ == 0) return;
+void Game::RenderTopPanel() {
+   long width, height;
+   GetDefaultSize(width, height);
+   height = UI::TOP_PANEL_HEIGHT;
 
-   d3d_.ctx_->ClearRenderTargetView(d3d_.renderTargetView_.Get(),
-      DirectX::Colors::Gray);
+   textureSpriteBatch_->Begin(
+      DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred,
+      states_->NonPremultiplied(), states_->LinearWrap());
 
+   // top left corner
+   DirectX::XMFLOAT2 tlcAt = { 0,0 };
+   auto tlcWidth = UI::TOP_LEFT_CORNER.right - UI::TOP_LEFT_CORNER.left;
+   auto tlcHeight = UI::TOP_LEFT_CORNER.bottom - UI::TOP_LEFT_CORNER.top;
+
+   textureSpriteBatch_->Draw(texture_.Get(), tlcAt, &UI::TOP_LEFT_CORNER, DirectX::Colors::White, 0.f, origin_);
+   // top right corner
+   auto trcWidth = UI::TOP_RIGHT_CORNER.right - UI::TOP_RIGHT_CORNER.left;
+   DirectX::XMFLOAT2 trcAt = { float(width - trcWidth), 0 };
+   textureSpriteBatch_->Draw(texture_.Get(), trcAt, &UI::TOP_RIGHT_CORNER, DirectX::Colors::White, 0.f, origin_);
+   // bottom left corner
+   auto blcHeight = UI::BOTTOM_LEFT_CORNER.bottom - UI::BOTTOM_LEFT_CORNER.top;
+   DirectX::XMFLOAT2 blcAt = { 0, float(height - blcHeight) };
+   textureSpriteBatch_->Draw(texture_.Get(), blcAt, &UI::BOTTOM_LEFT_CORNER, DirectX::Colors::White, 0.f, origin_);
+   // bottom right corner
+   auto brcWidth = UI::BOTTOM_RIGHT_CORNER.right - UI::BOTTOM_RIGHT_CORNER.left;
+   auto brcHeight = UI::BOTTOM_RIGHT_CORNER.bottom - UI::BOTTOM_RIGHT_CORNER.top;
+   DirectX::XMFLOAT2 brcAt = { float(width - brcWidth), float(height - brcHeight) };
+   textureSpriteBatch_->Draw(texture_.Get(), brcAt, &UI::BOTTOM_RIGHT_CORNER, DirectX::Colors::White, 0.f, origin_);
+
+   for (auto x = tlcWidth; x <= width - trcWidth; x++) { // horizontally
+      DirectX::XMFLOAT2 at = { float(x),0 };
+      textureSpriteBatch_->Draw(texture_.Get(), at, &UI::TOP_HORIZONTAL_LINE, DirectX::Colors::White, 0.f, origin_);
+      at.y = height - blcHeight;
+      textureSpriteBatch_->Draw(texture_.Get(), at, &UI::BOTTOM_HORIZONTAL_LINE, DirectX::Colors::White, 0.f, origin_);
+   }
+
+   for (auto y = tlcHeight; y <= height - blcHeight; y++) { // vertically
+      DirectX::XMFLOAT2 at = { 0,float(y) };
+      textureSpriteBatch_->Draw(texture_.Get(), at, &UI::LEFT_VERTICAL_LINE, DirectX::Colors::White, 0.f, origin_);
+      at.x = width - trcWidth;
+      textureSpriteBatch_->Draw(texture_.Get(), at, &UI::RIGHT_VERTICAL_LINE, DirectX::Colors::White, 0.f, origin_);
+   }
+
+   for (auto x = tlcWidth; x <= width - trcWidth; x++) { // fill center
+      for (auto y = tlcHeight; y <= height - blcHeight; y++) {
+         DirectX::XMFLOAT2 at = { float(x),float(y) };
+         textureSpriteBatch_->Draw(texture_.Get(), at, &UI::BACKGROUND_RECT, DirectX::Colors::White, 0.f, origin_);
+      }
+   }
+
+   textureSpriteBatch_->End();
+}
+
+void Game::RenderGameField() {
    textureSpriteBatch_->Begin(
       DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred,
       states_->NonPremultiplied(), states_->LinearWrap());
 
    for (auto x = 0; x < CELLS_X; x++) {
       for (auto y = 0; y < CELLS_Y; y++) {
-         DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH), float(y * CELL_HEIGHT) };
+         DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH), float(y * CELL_HEIGHT) + UI::TOP_PANEL_HEIGHT };
          auto cell = GetCell(x, y);
          if (!cell->opened) {
             auto color = cell->pressed ? DirectX::Colors::Red : DirectX::Colors::White;
@@ -309,7 +369,7 @@ void Game::Render() {
                color, 0.f, origin_, Texture::SCALING);
             if (cell->IsMarked()) {
                DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + 6,
-                                       float(y * CELL_HEIGHT) + 2 };
+                                       float(y * CELL_HEIGHT) + 2 + UI::TOP_PANEL_HEIGHT };
                auto texture = cell->state == RCellState::Flagged ? &Texture::FLAG_RECT : &Texture::QUESTION_MARK_RECT;
                textureSpriteBatch_->Draw(texture_.Get(), at, texture,
                   DirectX::Colors::White, 0.f, origin_, Texture::SCALING);
@@ -322,7 +382,7 @@ void Game::Render() {
          else if (cell->minesNear > 0) {
 
             DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + NUMBER_WIDTH_HALF,
-                                    float(y * CELL_HEIGHT) + NUMBER_HEIGHT_HALF };
+                                    float(y * CELL_HEIGHT) + NUMBER_HEIGHT_HALF + UI::TOP_PANEL_HEIGHT };
             auto left = (cell->minesNear - 1) * Texture::NUMBER_WIDTH;
             auto right = cell->minesNear * Texture::NUMBER_WIDTH;
             RECT rc = { left, Texture::NUMBER_TOP_AT, right, Texture::NUMBER_BOTTOM_AT };
@@ -332,6 +392,16 @@ void Game::Render() {
    }
 
    textureSpriteBatch_->End();
+}
+
+void Game::Render() {
+   if (d3d_.ctx_ == 0) return;
+
+   d3d_.ctx_->ClearRenderTargetView(d3d_.renderTargetView_.Get(),
+      DirectX::Colors::Gray);
+
+   RenderTopPanel();
+   RenderGameField();
 
    d3d_.swapChain_->Present(1, 0);
 }

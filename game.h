@@ -3,10 +3,6 @@
 #include "DeviceManager.h"
 #include "Cell.h"
 
-struct Pos {
-   int x;
-   int y;
-};
 
 // percentage of mines
 enum Difficulty {
@@ -34,6 +30,15 @@ const std::array<DirectX::XMVECTORF32, 8> NUMBER_TINTS = {
    DirectX::Colors::Beige,
    DirectX::Colors::DarkOrchid,
    DirectX::Colors::Honeydew,
+};
+
+struct Pos {
+   int x;
+   int y;
+
+   bool IsInBounds() {
+      return (x >= 0 && x < CELLS_X && y >= 0 && y < CELLS_Y);
+   }
 };
 
 class Game {
@@ -66,6 +71,9 @@ private:
    void Defeat();
    void Win();
 
+   void RenderTopPanel();
+   void RenderGameField();
+
    HINSTANCE hInstance_;
    HWND hwnd_;
    long width_;
@@ -88,7 +96,6 @@ private:
    std::unique_ptr<DirectX::SpriteBatch> textureSpriteBatch_;
    std::unique_ptr<DirectX::CommonStates> states_;
    DirectX::SimpleMath::Vector2 origin_;
-   RECT tileRect_;
 
    std::array<std::array<Cell, CELLS_Y>, CELLS_X> cells_ = {};
 
