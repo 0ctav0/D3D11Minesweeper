@@ -1,6 +1,7 @@
 #pragma once
+#include <winnt.h>
 
-enum RCellState : unsigned char {
+enum RCellState : BYTE {
    Still,
    Flagged,
    Questioned,
@@ -11,7 +12,7 @@ struct Cell {
    RCellState state : 2;
    bool mined : 1;
    bool pressed : 1;
-   unsigned char minesNear : 4;
+   BYTE minesNear : 4;
 
    bool IsMarked() {
       return state == RCellState::Flagged || state == RCellState::Questioned;

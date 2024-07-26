@@ -18,14 +18,14 @@ enum GameState {
 
 auto constexpr CELLS_X = 20;
 auto constexpr CELLS_Y = 16;
-int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Medium;
+int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Impossible;
 auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
 const std::array<DirectX::XMVECTORF32, 8> NUMBER_TINTS = {
    DirectX::Colors::Black,
    DirectX::Colors::Magenta,
-   DirectX::Colors::Coral,
-   DirectX::Colors::Khaki,
+   DirectX::Colors::Red,
+   DirectX::Colors::Orange,
    DirectX::Colors::AliceBlue,
    DirectX::Colors::Beige,
    DirectX::Colors::DarkOrchid,
@@ -71,7 +71,12 @@ private:
    void Defeat();
    void Win();
 
+   std::vector<char> GetDigits(int number);
+
+   void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color, float scaling);
+   void RenderPanel(RECT size);
    void RenderTopPanel();
+   void RenderMinesNumber();
    void RenderGameField();
 
    HINSTANCE hInstance_;
@@ -100,7 +105,8 @@ private:
    std::array<std::array<Cell, CELLS_Y>, CELLS_X> cells_ = {};
 
    GameState gameState_ = GameState::Play;
-   unsigned opened_ = 0;
+   UINT opened_ = 0;
+   UINT flagged_ = 0;
    bool hasOpened_ = false;
    Pos selectedCell_ = {};
 };

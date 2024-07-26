@@ -13,11 +13,19 @@ namespace Texture {
    RECT FLAG_RECT = { CELL_WIDTH * 2, 0, CELL_WIDTH * 3, CELL_HEIGHT };
    RECT MINE_RECT = { CELL_WIDTH * 3, 0, CELL_WIDTH * 4, CELL_HEIGHT };
    RECT QUESTION_MARK_RECT = { CELL_WIDTH * 4, 0, CELL_WIDTH * 5, CELL_HEIGHT };
+   RECT MINUS = { 56, 152, 88, 156 };
 
    auto constexpr NUMBER_TOP_AT = 96;
    auto constexpr NUMBER_BOTTOM_AT = 158;
 
    auto constexpr SCALING = .5f;
+
+   RECT GetDigitRect(BYTE digit) {
+      auto left = digit * Texture::NUMBER_WIDTH;
+      auto right = (digit + 1) * Texture::NUMBER_WIDTH;
+      RECT rc = { left, Texture::NUMBER_TOP_AT, right, Texture::NUMBER_BOTTOM_AT };
+      return rc;
+   }
 };
 
 auto constexpr CELL_WIDTH = Texture::CELL_WIDTH * Texture::SCALING;
@@ -26,6 +34,7 @@ auto constexpr NUMBER_WIDTH_HALF = CELL_WIDTH / 2 * Texture::SCALING;
 auto constexpr NUMBER_HEIGHT_HALF = CELL_HEIGHT / 2 * Texture::SCALING;
 
 namespace UI {
+   auto constexpr MINES_COUNT_CHAR_NUMBER = 3;
    auto constexpr TOP_PANEL_WIDTH = CELLS_X * CELL_WIDTH;
    auto constexpr TOP_PANEL_HEIGHT = Texture::CELL_HEIGHT * 2;
    RECT TOP_LEFT_CORNER = { 0, 0, 5, 5 };
@@ -174,7 +183,7 @@ void Game::IterateNear(int originX, int originY, std::function<void(int, int)> c
 
 void Game::ExploreMap(int originX, int originY) {
    auto cell = GetCell(originX, originY);
-   if (cell->opened || cell->IsMarked()) return;
+   if (gameState_ != GameState::Play || cell->opened || cell->IsMarked()) return;
    OpenAt(originX, originY);
    if (cell->minesNear == 0) {
       IterateNear(originX, originY, [this](int x, int y) {
@@ -225,7 +234,11 @@ void Game::ClickAt(int x, int y) {
 
 void Game::MarkAt(int x, int y) {
    auto cell = GetCell(x, y);
-   if (!cell->opened) cell->ToggleState();
+   if (!cell->opened) {
+      cell->ToggleState();
+      if (cell->state == RCellState::Flagged) flagged_++;
+      if (cell->state == RCellState::Questioned) flagged_--;
+   }
 }
 
 bool Game::IsCellSelected(int x, int y) {
@@ -241,6 +254,25 @@ void Game::Defeat() {
 void Game::Win() {
    gameState_ = GameState::Win;
    winSound_->Play();
+}
+
+std::vector<char> Game::GetDigits(int number) {
+   std::vector<char> digits = {};
+   int rest = number >= std::pow(10, UI::MINES_COUNT_CHAR_NUMBER) ?
+      std::pow(10, UI::MINES_COUNT_CHAR_NUMBER) - 1 :
+      number <= -std::pow(10, UI::MINES_COUNT_CHAR_NUMBER - 1) ?
+      std::pow(10, UI::MINES_COUNT_CHAR_NUMBER - 1) - 1 :
+      number;
+   auto i = 0;
+   do {
+      auto digit = std::abs(rest % 10);
+      digits.push_back(digit);
+      rest /= 10;
+      i++;
+   } while (rest != 0);
+   if (number < 0) digits.push_back('-');
+   std::reverse(digits.begin(), digits.end());
+   return digits;
 }
 
 bool Game::LoadContent() {
@@ -301,57 +333,99 @@ void Game::Update(float dt) {
    }
 }
 
+void Game::Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color = DirectX::Colors::White, float scaling = 1) {
+   textureSpriteBatch_->Draw(texture_.Get(), pos, sourceRectangle, color, .0f, origin_, scaling);
+}
+
+void Game::RenderPanel(RECT size) {
+   auto width = size.right - size.left;
+   auto height = size.bottom - size.top;
+
+   // top left corner
+   DirectX::XMFLOAT2 tlcAt = { float(size.left), float(size.top) };
+   auto tlcWidth = UI::TOP_LEFT_CORNER.right - UI::TOP_LEFT_CORNER.left;
+   auto tlcHeight = UI::TOP_LEFT_CORNER.bottom - UI::TOP_LEFT_CORNER.top;
+   Draw(tlcAt, &UI::TOP_LEFT_CORNER);
+
+   // top right corner
+   auto trcWidth = UI::TOP_RIGHT_CORNER.right - UI::TOP_RIGHT_CORNER.left;
+   DirectX::XMFLOAT2 trcAt = { size.left + float(width - trcWidth), float(size.top) };
+   Draw(trcAt, &UI::TOP_RIGHT_CORNER);
+
+   // bottom left corner
+   auto blcHeight = UI::BOTTOM_LEFT_CORNER.bottom - UI::BOTTOM_LEFT_CORNER.top;
+   DirectX::XMFLOAT2 blcAt = { float(size.left), size.top + float(height - blcHeight) };
+   Draw(blcAt, &UI::BOTTOM_LEFT_CORNER);
+
+   // bottom right corner
+   auto brcWidth = UI::BOTTOM_RIGHT_CORNER.right - UI::BOTTOM_RIGHT_CORNER.left;
+   auto brcHeight = UI::BOTTOM_RIGHT_CORNER.bottom - UI::BOTTOM_RIGHT_CORNER.top;
+   DirectX::XMFLOAT2 brcAt = { size.left + float(width - brcWidth), size.top + float(height - brcHeight) };
+   Draw(brcAt, &UI::BOTTOM_RIGHT_CORNER);
+
+   for (auto x = tlcWidth; x <= width - trcWidth; x++) { // horizontally
+      DirectX::XMFLOAT2 at = { size.left + float(x), float(size.top) };
+      Draw(at, &UI::TOP_HORIZONTAL_LINE);
+      at.y = size.top + height - blcHeight;
+      Draw(at, &UI::BOTTOM_HORIZONTAL_LINE);
+   }
+
+   for (auto y = tlcHeight; y <= height - blcHeight; y++) { // vertically
+      DirectX::XMFLOAT2 at = { float(size.left), size.top + float(y) };
+      Draw(at, &UI::LEFT_VERTICAL_LINE);
+      at.x = size.left + width - trcWidth;
+      Draw(at, &UI::RIGHT_VERTICAL_LINE);
+   }
+
+   for (auto x = tlcWidth; x <= width - trcWidth; x++) { // fill center
+      for (auto y = tlcHeight; y <= height - blcHeight; y++) {
+         DirectX::XMFLOAT2 at = { size.left + float(x), size.top + float(y) };
+         Draw(at, &UI::BACKGROUND_RECT);
+      }
+   }
+}
+
 void Game::RenderTopPanel() {
    long width, height;
    GetDefaultSize(width, height);
-   height = UI::TOP_PANEL_HEIGHT;
 
    textureSpriteBatch_->Begin(
       DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred,
       states_->NonPremultiplied(), states_->LinearWrap());
 
-   // top left corner
-   DirectX::XMFLOAT2 tlcAt = { 0,0 };
-   auto tlcWidth = UI::TOP_LEFT_CORNER.right - UI::TOP_LEFT_CORNER.left;
-   auto tlcHeight = UI::TOP_LEFT_CORNER.bottom - UI::TOP_LEFT_CORNER.top;
+   RECT size = { 0, 0, width, UI::TOP_PANEL_HEIGHT };
+   RenderPanel(size);
 
-   textureSpriteBatch_->Draw(texture_.Get(), tlcAt, &UI::TOP_LEFT_CORNER, DirectX::Colors::White, 0.f, origin_);
-   // top right corner
-   auto trcWidth = UI::TOP_RIGHT_CORNER.right - UI::TOP_RIGHT_CORNER.left;
-   DirectX::XMFLOAT2 trcAt = { float(width - trcWidth), 0 };
-   textureSpriteBatch_->Draw(texture_.Get(), trcAt, &UI::TOP_RIGHT_CORNER, DirectX::Colors::White, 0.f, origin_);
-   // bottom left corner
-   auto blcHeight = UI::BOTTOM_LEFT_CORNER.bottom - UI::BOTTOM_LEFT_CORNER.top;
-   DirectX::XMFLOAT2 blcAt = { 0, float(height - blcHeight) };
-   textureSpriteBatch_->Draw(texture_.Get(), blcAt, &UI::BOTTOM_LEFT_CORNER, DirectX::Colors::White, 0.f, origin_);
-   // bottom right corner
-   auto brcWidth = UI::BOTTOM_RIGHT_CORNER.right - UI::BOTTOM_RIGHT_CORNER.left;
-   auto brcHeight = UI::BOTTOM_RIGHT_CORNER.bottom - UI::BOTTOM_RIGHT_CORNER.top;
-   DirectX::XMFLOAT2 brcAt = { float(width - brcWidth), float(height - brcHeight) };
-   textureSpriteBatch_->Draw(texture_.Get(), brcAt, &UI::BOTTOM_RIGHT_CORNER, DirectX::Colors::White, 0.f, origin_);
-
-   for (auto x = tlcWidth; x <= width - trcWidth; x++) { // horizontally
-      DirectX::XMFLOAT2 at = { float(x),0 };
-      textureSpriteBatch_->Draw(texture_.Get(), at, &UI::TOP_HORIZONTAL_LINE, DirectX::Colors::White, 0.f, origin_);
-      at.y = height - blcHeight;
-      textureSpriteBatch_->Draw(texture_.Get(), at, &UI::BOTTOM_HORIZONTAL_LINE, DirectX::Colors::White, 0.f, origin_);
-   }
-
-   for (auto y = tlcHeight; y <= height - blcHeight; y++) { // vertically
-      DirectX::XMFLOAT2 at = { 0,float(y) };
-      textureSpriteBatch_->Draw(texture_.Get(), at, &UI::LEFT_VERTICAL_LINE, DirectX::Colors::White, 0.f, origin_);
-      at.x = width - trcWidth;
-      textureSpriteBatch_->Draw(texture_.Get(), at, &UI::RIGHT_VERTICAL_LINE, DirectX::Colors::White, 0.f, origin_);
-   }
-
-   for (auto x = tlcWidth; x <= width - trcWidth; x++) { // fill center
-      for (auto y = tlcHeight; y <= height - blcHeight; y++) {
-         DirectX::XMFLOAT2 at = { float(x),float(y) };
-         textureSpriteBatch_->Draw(texture_.Get(), at, &UI::BACKGROUND_RECT, DirectX::Colors::White, 0.f, origin_);
-      }
-   }
+   RenderMinesNumber();
 
    textureSpriteBatch_->End();
+}
+
+void Game::RenderMinesNumber() {
+   DirectX::XMFLOAT2 at = { float(UI::TOP_LEFT_CORNER.right + 5), float(UI::TOP_LEFT_CORNER.bottom + 20) };
+   int minesAndFlagged = MINES_COUNT - flagged_;
+   auto digits = GetDigits(minesAndFlagged);
+
+   RECT size = { at.x, at.y - 5, at.x + Texture::NUMBER_WIDTH * UI::MINES_COUNT_CHAR_NUMBER + 4, at.y + Texture::NUMBER_HEIGHT + 4 };
+   RenderPanel(size);
+   // indent
+   auto indentNumber = UI::MINES_COUNT_CHAR_NUMBER - digits.size();
+   for (auto i = 0; i < indentNumber; i++) {
+      at.x += Texture::NUMBER_WIDTH;
+   }
+   // digits
+   for (auto digit : digits) {
+      if (digit == '-') {
+         DirectX::XMFLOAT2 minusAt = { at.x, at.y + Texture::NUMBER_HEIGHT / 2 };
+         Draw(minusAt, &Texture::MINUS, DirectX::Colors::DarkRed);
+      }
+      else {
+         auto rect = Texture::GetDigitRect(digit);
+         Draw(at, &rect, DirectX::Colors::DarkRed);
+      }
+      at.x += Texture::NUMBER_WIDTH;
+   }
+
 }
 
 void Game::RenderGameField() {
@@ -365,28 +439,22 @@ void Game::RenderGameField() {
          auto cell = GetCell(x, y);
          if (!cell->opened) {
             auto color = cell->pressed ? DirectX::Colors::Red : DirectX::Colors::White;
-            textureSpriteBatch_->Draw(texture_.Get(), at, &Texture::CELL_RECT,
-               color, 0.f, origin_, Texture::SCALING);
+            Draw(at, &Texture::CELL_RECT, color, Texture::SCALING);
             if (cell->IsMarked()) {
                DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + 6,
                                        float(y * CELL_HEIGHT) + 2 + UI::TOP_PANEL_HEIGHT };
                auto texture = cell->state == RCellState::Flagged ? &Texture::FLAG_RECT : &Texture::QUESTION_MARK_RECT;
-               textureSpriteBatch_->Draw(texture_.Get(), at, texture,
-                  DirectX::Colors::White, 0.f, origin_, Texture::SCALING);
+               Draw(at, texture, DirectX::Colors::White, Texture::SCALING);
             }
          }
          else if (cell->mined) {
-            textureSpriteBatch_->Draw(texture_.Get(), at, &Texture::MINE_RECT,
-               DirectX::Colors::White, 0.f, origin_, Texture::SCALING);
+            Draw(at, &Texture::MINE_RECT, DirectX::Colors::White, Texture::SCALING);
          }
          else if (cell->minesNear > 0) {
-
             DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + NUMBER_WIDTH_HALF,
                                     float(y * CELL_HEIGHT) + NUMBER_HEIGHT_HALF + UI::TOP_PANEL_HEIGHT };
-            auto left = (cell->minesNear - 1) * Texture::NUMBER_WIDTH;
-            auto right = cell->minesNear * Texture::NUMBER_WIDTH;
-            RECT rc = { left, Texture::NUMBER_TOP_AT, right, Texture::NUMBER_BOTTOM_AT };
-            textureSpriteBatch_->Draw(texture_.Get(), at, &rc, NUMBER_TINTS[cell->minesNear - 1], 0.f, origin_, Texture::SCALING * Texture::SCALING);
+            auto rect = Texture::GetDigitRect(cell->minesNear);
+            Draw(at, &rect, NUMBER_TINTS[cell->minesNear - 1], Texture::SCALING * Texture::SCALING);
          }
       }
    }
