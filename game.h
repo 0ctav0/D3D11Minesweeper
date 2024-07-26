@@ -18,7 +18,7 @@ enum GameState {
 
 auto constexpr CELLS_X = 20;
 auto constexpr CELLS_Y = 16;
-int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Impossible;
+int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Medium;
 auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
 const std::array<DirectX::XMVECTORF32, 8> NUMBER_TINTS = {

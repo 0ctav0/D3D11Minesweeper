@@ -440,6 +440,9 @@ void Game::RenderGameField() {
          if (!cell->opened) {
             auto color = cell->pressed ? DirectX::Colors::Red : DirectX::Colors::White;
             Draw(at, &Texture::CELL_RECT, color, Texture::SCALING);
+            if (gameState_ == GameState::Defeat && cell->mined) {
+               Draw(at, &Texture::MINE_RECT, DirectX::Colors::White, Texture::SCALING);
+            }
             if (cell->IsMarked()) {
                DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + 6,
                                        float(y * CELL_HEIGHT) + 2 + UI::TOP_PANEL_HEIGHT };
