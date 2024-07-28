@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DeviceManager.h"
+#include "SoundSystem.h"
 #include "Cell.h"
 
 
@@ -18,7 +19,7 @@ enum GameState {
 
 auto constexpr CELLS_X = 20;
 auto constexpr CELLS_Y = 16;
-int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Medium;
+int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Hard;
 auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
 const std::array<DirectX::XMVECTORF32, 8> NUMBER_TINTS = {
@@ -39,6 +40,19 @@ struct Pos {
    bool IsInBounds() {
       return (x >= 0 && x < CELLS_X && y >= 0 && y < CELLS_Y);
    }
+};
+
+struct GameData {
+   std::array<std::array<Cell, CELLS_Y>, CELLS_X> cells = {};
+
+   GameState gameState = GameState::Play;
+   UINT opened = 0;
+   UINT flagged = 0;
+   bool hasOpened = false;
+};
+
+enum PanelState : BYTE {
+   In, Out
 };
 
 class Game {
@@ -70,13 +84,16 @@ private:
    bool IsCellSelected(int x, int y);
    void Defeat();
    void Win();
+   void Restart();
 
    std::vector<char> GetDigits(int number);
 
-   void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color, float scaling);
-   void RenderPanel(RECT size);
+   void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color, float scaling, DirectX::SpriteEffects effects);
+   void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::SpriteEffects effects);
+   void RenderPanel(RECT size, PanelState state);
    void RenderTopPanel();
    void RenderMinesNumber();
+   void RenderRestartButton();
    void RenderGameField();
 
    HINSTANCE hInstance_;
@@ -84,7 +101,8 @@ private:
    long width_;
    long height_;
 
-   DeviceManager d3d_;
+   DeviceManager d3d_ = {};
+   SoundSystem sound_ = {};
 
    std::unique_ptr<DirectX::Keyboard> keyboard_;
    DirectX::Keyboard::KeyboardStateTracker keyTracker_;
@@ -93,20 +111,15 @@ private:
    DirectX::Mouse::Mouse::ButtonStateTracker mouseTracker_;
    bool leftHeld_ = false;
 
-   std::unique_ptr<DirectX::AudioEngine> audioEngine_;
-   std::unique_ptr<DirectX::SoundEffect> defeatSound_;
-   std::unique_ptr<DirectX::SoundEffect> winSound_;
-
    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture_;
    std::unique_ptr<DirectX::SpriteBatch> textureSpriteBatch_;
    std::unique_ptr<DirectX::CommonStates> states_;
    DirectX::SimpleMath::Vector2 origin_;
 
-   std::array<std::array<Cell, CELLS_Y>, CELLS_X> cells_ = {};
-
-   GameState gameState_ = GameState::Play;
-   UINT opened_ = 0;
-   UINT flagged_ = 0;
-   bool hasOpened_ = false;
+   RECT restartButtonRect_ = {};
+   bool restartButtonPressed_ = false;
    Pos selectedCell_ = {};
+
+   GameData data_;
 };
+
