@@ -68,7 +68,6 @@ void Game::OnMouseMove() {
    auto mouse = mouse_->GetState();
    int x = mouse.x / CELL_WIDTH;
    int y = std::floor((mouse.y - UI::TOP_PANEL_HEIGHT) / CELL_HEIGHT);
-   DX::Print(L"[%i,%i]", x, y);
    selectedCell_.x = x;
    selectedCell_.y = y;
 }
@@ -133,13 +132,16 @@ void Game::OpenAt(int x, int y) {
    if (cell->IsMarked() || cell->opened) return;
 
    cell->opened = true;
-   if (!data_.hasOpened) InitMines(x, y);
-   data_.hasOpened = true;
+
+   if (!data_.started) {
+      Start(x, y);
+   }
 
    if (cell->mined) {
       Defeat();
       return;
    }
+
    auto mines = 0;
    IterateNear(x, y, [this, &mines](int x, int y) {
       auto cell = GetCell(x, y);
@@ -235,6 +237,12 @@ bool Game::IsCellSelected(int x, int y) {
    return selectedCell_.x == x && selectedCell_.y == y && !cell->IsMarked();
 }
 
+void Game::Start(int x, int y) {
+   data_.started = true;
+
+   InitMines(x, y);
+}
+
 void Game::Defeat() {
    data_.gameState = GameState::Defeat;
    sound_.defeat->Play();
@@ -251,7 +259,7 @@ void Game::Restart() {
 }
 
 std::vector<char> Game::GetDigits(int number) {
-   std::vector<char> digits = {};
+   std::vector<char> digits;
    int rest = number >= std::pow(10, UI::MINES_COUNT_CHAR_NUMBER) ?
       std::pow(10, UI::MINES_COUNT_CHAR_NUMBER) - 1 :
       number <= -std::pow(10, UI::MINES_COUNT_CHAR_NUMBER - 1) ?
@@ -298,6 +306,13 @@ void Game::Update(float dt) {
    auto mouseState = mouse_->GetState();
    keyTracker_.Update(kb);
    mouseTracker_.Update(mouseState);
+
+
+   auto now = DX::Now();
+   if (now - time >= 1000) {
+      time = now;
+      if (data_.gameState == GameState::Play && data_.started) data_.timer++;
+   }
 
    if (keyTracker_.IsKeyReleased(DirectX::Keyboard::Escape)) {
       ExitGame();
@@ -411,35 +426,39 @@ void Game::RenderTopPanel() {
 
    RenderMinesNumber();
    RenderRestartButton();
+   RenderTimer();
 
    textureSpriteBatch_->End();
 }
 
-void Game::RenderMinesNumber() {
-   DirectX::XMFLOAT2 at = { float(UI::TOP_LEFT_CORNER.right + 5), float(UI::TOP_LEFT_CORNER.bottom + 30) };
-   int minesAndFlagged = MINES_COUNT - data_.flagged;
-   auto digits = GetDigits(minesAndFlagged);
+void Game::RenderNumber(DirectX::XMFLOAT2& pos, int number) {
+   auto digits = GetDigits(number);
 
-   RECT size = { at.x, at.y - 10, at.x + Texture::NUMBER_WIDTH * UI::MINES_COUNT_CHAR_NUMBER + 10, at.y + Texture::NUMBER_HEIGHT + 10 };
-   RenderPanel(size, PanelState::In);
    // indent
    auto indentNumber = UI::MINES_COUNT_CHAR_NUMBER - digits.size();
    for (auto i = 0; i < indentNumber; i++) {
-      at.x += Texture::NUMBER_WIDTH;
+      pos.x += Texture::NUMBER_WIDTH;
    }
    // digits
    for (auto digit : digits) {
       if (digit == '-') {
-         DirectX::XMFLOAT2 minusAt = { at.x, at.y + Texture::NUMBER_HEIGHT / 2 };
+         DirectX::XMFLOAT2 minusAt = { pos.x, pos.y + Texture::NUMBER_HEIGHT / 2 };
          Draw(minusAt, &Texture::MINUS, DirectX::Colors::DarkRed);
       }
       else {
          auto rect = Texture::GetDigitRect(digit);
-         Draw(at, &rect, DirectX::Colors::DarkRed);
+         Draw(pos, &rect, DirectX::Colors::DarkRed);
       }
-      at.x += Texture::NUMBER_WIDTH;
+      pos.x += Texture::NUMBER_WIDTH;
    }
+}
 
+void Game::RenderMinesNumber() {
+   int minesAndFlagged = MINES_COUNT - data_.flagged;
+   DirectX::XMFLOAT2 at = { 10, 40 };
+   RECT size = { at.x, at.y - 10, at.x + Texture::NUMBER_WIDTH * UI::MINES_COUNT_CHAR_NUMBER + 10, at.y + Texture::NUMBER_HEIGHT + 10 };
+   RenderPanel(size, PanelState::In);
+   RenderNumber(at, minesAndFlagged);
 }
 
 void Game::RenderRestartButton() {
@@ -452,6 +471,17 @@ void Game::RenderRestartButton() {
    RenderPanel(restartButtonRect_, restartButtonPressed_ ? PanelState::In : PanelState::Out);
    DirectX::XMFLOAT2 at = { float(restartButtonRect_.left + 3), float(restartButtonRect_.top + 6) };
    Draw(at, &Texture::MINE_RECT);
+}
+
+void Game::RenderTimer() {
+   long width, height;
+   GetDefaultSize(width, height);
+   height = UI::TOP_PANEL_HEIGHT;
+
+   DirectX::XMFLOAT2 at = { width / 3 + width / 3.0f, 40 };
+   RECT size = { at.x - 4, at.y - 10, at.x + Texture::NUMBER_WIDTH * UI::MINES_COUNT_CHAR_NUMBER + 10, at.y + Texture::NUMBER_HEIGHT + 10 };
+   RenderPanel(size, PanelState::In);
+   RenderNumber(at, data_.timer);
 }
 
 void Game::RenderGameField() {

@@ -59,11 +59,11 @@
 #include <memory>
 #include <stdexcept>
 #include <tuple>
+#include <array>
 #include <format>
-#include <unordered_map>
 #include <random>
 #include <functional>
-#include <array>
+#include <chrono>
 
 namespace Log {
    inline std::ofstream file;
@@ -90,4 +90,6 @@ namespace DX {
       swprintf_s(buf, format, args...);
       OutputDebugStringW(buf);
    }
+
+   unsigned long Now();
 }

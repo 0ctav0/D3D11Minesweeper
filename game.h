@@ -17,8 +17,8 @@ enum GameState {
    Play, Win, Defeat
 };
 
-auto constexpr CELLS_X = 20;
-auto constexpr CELLS_Y = 16;
+auto constexpr CELLS_X = 40;
+auto constexpr CELLS_Y = 24;
 int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Hard;
 auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
@@ -48,7 +48,8 @@ struct GameData {
    GameState gameState = GameState::Play;
    UINT opened = 0;
    UINT flagged = 0;
-   bool hasOpened = false;
+   bool started = false;
+   UINT timer = 0;
 };
 
 enum PanelState : BYTE {
@@ -82,6 +83,7 @@ private:
    void ClickAt(int x, int y);
    void MarkAt(int x, int y);
    bool IsCellSelected(int x, int y);
+   void Start(int x, int y);
    void Defeat();
    void Win();
    void Restart();
@@ -92,8 +94,10 @@ private:
    void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::SpriteEffects effects);
    void RenderPanel(RECT size, PanelState state);
    void RenderTopPanel();
+   void RenderNumber(DirectX::XMFLOAT2& pos, int number);
    void RenderMinesNumber();
    void RenderRestartButton();
+   void RenderTimer();
    void RenderGameField();
 
    HINSTANCE hInstance_;
@@ -121,5 +125,7 @@ private:
    Pos selectedCell_ = {};
 
    GameData data_;
+
+   unsigned long time;
 };
 
