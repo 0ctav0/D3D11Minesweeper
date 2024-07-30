@@ -64,6 +64,7 @@
 #include <random>
 #include <functional>
 #include <chrono>
+#include <thread>
 
 namespace Log {
    inline std::ofstream file;

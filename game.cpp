@@ -307,13 +307,6 @@ void Game::Update(float dt) {
    keyTracker_.Update(kb);
    mouseTracker_.Update(mouseState);
 
-
-   auto now = DX::Now();
-   if (now - time >= 1000) {
-      time = now;
-      if (data_.gameState == GameState::Play && data_.started) data_.timer++;
-   }
-
    if (keyTracker_.IsKeyReleased(DirectX::Keyboard::Escape)) {
       ExitGame();
    }
@@ -336,6 +329,10 @@ void Game::Update(float dt) {
    if (mouseTracker_.rightButton == DirectX::Mouse::ButtonStateTracker::RELEASED) {
       if (data_.gameState == GameState::Play && selectedCell_.IsInBounds()) MarkAt(selectedCell_.x, selectedCell_.y);
    }
+}
+
+void Game::Thread() {
+   if (data_.gameState == GameState::Play && data_.started) data_.timer++;
 }
 
 void Game::Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color = DirectX::Colors::White, float scaling = 1, DirectX::SpriteEffects effects = DirectX::SpriteEffects_None) {

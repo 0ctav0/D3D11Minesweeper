@@ -67,6 +67,7 @@ public:
    bool Init(HINSTANCE hInstance, HWND hwnd);
    bool LoadContent();
    void Update(float dt);
+   void Thread();
    void Render();
 
 private:

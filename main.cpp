@@ -48,6 +48,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPWSTR cmdLine,
 
    if (result == false) return -1;
 
+   std::thread thread([]() {
+      while (true) {
+         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+         game->Thread();
+      }
+      });
+   thread.detach();
+
    MSG msg = {};
    while (msg.message != WM_QUIT) {
       if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
