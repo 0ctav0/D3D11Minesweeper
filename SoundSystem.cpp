@@ -16,16 +16,22 @@ bool SoundSystem::Init() {
 #ifdef _DEBUG
    eflags |= DirectX::AudioEngine_Debug;
 #endif
-   audioEngine_ = std::make_unique<DirectX::AudioEngine>(eflags);
+   try {
+      audioEngine_ = std::make_unique<DirectX::AudioEngine>(eflags);
 
-   defeat = std::make_unique<DirectX::SoundEffect>(audioEngine_.get(), L"sounds/defeat.wav");
-   win = std::make_unique<DirectX::SoundEffect>(audioEngine_.get(), L"sounds/win.wav");
-   for (auto i = 1; i <= PIG_SOUNDS_NUMBER; i++) {
-      wchar_t buf[100];
-      swprintf_s(buf, L"sounds/pig%i.wav", i);
-      pigSounds_.push_back(std::make_unique<DirectX::SoundEffect>(audioEngine_.get(), buf));
+      defeat = std::make_unique<DirectX::SoundEffect>(audioEngine_.get(), L"sounds/defeat.wav");
+      win = std::make_unique<DirectX::SoundEffect>(audioEngine_.get(), L"sounds/win.wav");
+      for (auto i = 1; i <= PIG_SOUNDS_NUMBER; i++) {
+         wchar_t buf[100];
+         swprintf_s(buf, L"sounds/pig%i.wav", i);
+         pigSounds_.push_back(std::make_unique<DirectX::SoundEffect>(audioEngine_.get(), buf));
+      }
+      return true;
    }
-   return true;
+   catch (const std::exception& exc) {
+      Log::Error(exc.what());
+      return false;
+   }
 }
 
 void SoundSystem::PlayPig() {

@@ -18,7 +18,7 @@ enum GameState {
 };
 
 auto constexpr CELLS_X = 40;
-auto constexpr CELLS_Y = 24;
+auto constexpr CELLS_Y = 20;
 int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Hard;
 auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
