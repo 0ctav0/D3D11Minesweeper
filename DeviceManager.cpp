@@ -3,13 +3,14 @@
 
 bool DeviceManager::Init(HWND hwnd, long width, long height) {
    Log::Info("DeviceManager::Init start");
+   width_ = width;
+   height_ = height;
    D3D_FEATURE_LEVEL featureLevels[] = {
      D3D_FEATURE_LEVEL_11_1,
      D3D_FEATURE_LEVEL_11_0,
    };
 
-   DXGI_SWAP_CHAIN_DESC swapChainDesc;
-   ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
+   DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
    swapChainDesc.BufferCount = 1;
    swapChainDesc.BufferDesc.Width = width;
    swapChainDesc.BufferDesc.Height = height;
@@ -51,16 +52,15 @@ bool DeviceManager::Init(HWND hwnd, long width, long height) {
    DX::ThrowIfFailed(context.As(&ctx_), "Failed to set context");
    DX::ThrowIfFailed(swapChain.As(&swapChain_), "Failed to set swap chain");
 
-   ID3D11Texture2D* backBufferTexture;
+   Microsoft::WRL::ComPtr<ID3D11Texture2D> backBufferTexture;
    hr = swapChain_->GetBuffer(0, _uuidof(ID3D11Texture2D),
       (LPVOID*)&backBufferTexture);
 
    DX::ThrowIfFailed(hr, "Failed to get the swap chain back buffer!");
 
-   hr = device_->CreateRenderTargetView(backBufferTexture, 0,
+   device_->CreateRenderTargetView(backBufferTexture.Get(), 0,
       renderTargetView_.GetAddressOf());
 
-   if (backBufferTexture) backBufferTexture->Release();
 
    DX::ThrowIfFailed(hr, "Failed to create the render target view !");
 
@@ -69,10 +69,27 @@ bool DeviceManager::Init(HWND hwnd, long width, long height) {
    D3D11_VIEWPORT viewport = {};
    viewport.Width = static_cast<float>(width);
    viewport.Height = static_cast<float>(height);
+   viewport.MaxDepth = 0.0f;
+   viewport.MaxDepth = 1.0f;
 
    ctx_->RSSetViewports(1, &viewport);
 
    Log::Info("DeviceManager::Init end");
 
    return true;
+}
+
+float DeviceManager::XPixelToRelative(float x)
+{
+   return 2.0f * x / width_ - 1;
+}
+
+float DeviceManager::YPixelToRelative(float y)
+{
+   return -2.0f * y / height_ + 1;
+}
+
+DirectX::XMFLOAT3 DeviceManager::PixelXMFLOAT3(float x, float y, float z)
+{
+   return DirectX::XMFLOAT3(XPixelToRelative(x), YPixelToRelative(y), z);
 }

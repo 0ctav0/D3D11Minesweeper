@@ -4,6 +4,9 @@
 #include "SoundSystem.h"
 #include "Cell.h"
 
+using DirectX::XMFLOAT2;
+using DirectX::XMFLOAT3;
+
 
 // percentage of mines
 enum Difficulty {
@@ -42,6 +45,11 @@ struct Pos {
    }
 };
 
+struct VertexPos {
+   XMFLOAT3 pos;
+   XMFLOAT2 tex0;
+};
+
 struct GameData {
    std::array<std::array<Cell, CELLS_Y>, CELLS_X> cells = {};
 
@@ -54,6 +62,12 @@ struct GameData {
 
 enum PanelState : BYTE {
    In, Out
+};
+
+struct CommonBuffer {
+   float width;
+   float height;
+   XMFLOAT2 reserved;
 };
 
 class Game {
@@ -91,8 +105,8 @@ private:
 
    std::vector<char> GetDigits(int number);
 
-   void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color, float scaling, DirectX::SpriteEffects effects);
-   void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::SpriteEffects effects);
+   void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color, float scaling);
+   void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle);
    void RenderPanel(RECT size, PanelState state);
    void RenderTopPanel();
    void RenderNumber(DirectX::XMFLOAT2& pos, int number);
@@ -117,9 +131,13 @@ private:
    bool leftHeld_ = false;
 
    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture_;
-   std::unique_ptr<DirectX::SpriteBatch> textureSpriteBatch_;
-   std::unique_ptr<DirectX::CommonStates> states_;
-   DirectX::SimpleMath::Vector2 origin_;
+   Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader_;
+   Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader_;
+   Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout_;
+   Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer_;
+   Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState_;
+   Microsoft::WRL::ComPtr<ID3D11BlendState> blendState_;
+   Microsoft::WRL::ComPtr<ID3D11Buffer> commonBuffer_; // to pass different data, i.e. window width, height
 
    RECT restartButtonRect_ = {};
    bool restartButtonPressed_ = false;

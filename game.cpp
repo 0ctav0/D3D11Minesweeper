@@ -280,21 +280,84 @@ std::vector<char> Game::GetDigits(int number) {
 bool Game::LoadContent() {
    Log::Info("Game::LoadContent start");
 
-   textureSpriteBatch_ = std::make_unique<DirectX::DX11::SpriteBatch>(d3d_.ctx_.Get());
-   states_ = std::make_unique<DirectX::DX11::CommonStates>(d3d_.device_.Get());
+
+   Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
+   Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
+
+   DX::ThrowIfFailed(D3DCompileFromFile(L"shader.fx", nullptr, nullptr, "VS_Main", "vs_4_0", 0, 0, vsBlob.GetAddressOf(), nullptr), "Failed to compile a shader from a file");
+
+   DX::ThrowIfFailed(d3d_.device_->CreateVertexShader(vsBlob.Get()->GetBufferPointer(), vsBlob.Get()->GetBufferSize(), nullptr, vertexShader_.GetAddressOf()), "Failed to create vertex shader");
+
+   DX::ThrowIfFailed(D3DCompileFromFile(L"shader.fx", nullptr, nullptr, "PS_Main", "ps_4_0", 0, 0, psBlob.GetAddressOf(), nullptr), "Failed to compile a shader from a file");
+
+   DX::ThrowIfFailed(d3d_.device_->CreatePixelShader(psBlob.Get()->GetBufferPointer(), psBlob.Get()->GetBufferSize(), nullptr, pixelShader_.GetAddressOf()), "Failed to create pixel shader");
+
+
+   D3D11_INPUT_ELEMENT_DESC inputDesc[] = {
+      {"SV_POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+         D3D11_INPUT_PER_VERTEX_DATA, 0},
+      {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12,
+         D3D11_INPUT_PER_VERTEX_DATA, 0}
+   };
+
+   auto totalLayoutElements = ARRAYSIZE(inputDesc);
+
+   DX::ThrowIfFailed(d3d_.device_->CreateInputLayout(
+      inputDesc, totalLayoutElements, vsBlob->GetBufferPointer(),
+      vsBlob->GetBufferSize(), inputLayout_.GetAddressOf()), "Failed to create an input layout");
 
    Microsoft::WRL::ComPtr<ID3D11Resource> resource;
    DX::ThrowIfFailed(DirectX::CreateWICTextureFromFile(d3d_.device_.Get(),
       Texture::FILENAME, resource.GetAddressOf(), texture_.ReleaseAndGetAddressOf()), "Failed to create a texture from a file");
 
-   Microsoft::WRL::ComPtr<ID3D11Texture2D> cell;
-   DX::ThrowIfFailed(resource.As(&cell), "Failed to set a resource");
 
-   CD3D11_TEXTURE2D_DESC cellDesc;
-   cell->GetDesc(&cellDesc);
+   D3D11_BUFFER_DESC vertexDesc = {};
+   vertexDesc.Usage = D3D11_USAGE_DYNAMIC;
+   vertexDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+   vertexDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+   vertexDesc.ByteWidth = sizeof(VertexPos) * 4;
 
-   origin_.x = 0;
-   origin_.y = 0;
+   DX::ThrowIfFailed(d3d_.device_->CreateBuffer(&vertexDesc, 0, vertexBuffer_.GetAddressOf()), "Failed to create the vertex buffer");
+
+   // setting up common buffer
+   static_assert((sizeof(CommonBuffer) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
+   CommonBuffer initData = { width_, height_ };
+   D3D11_BUFFER_DESC commonBufferDesc = {};
+   commonBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+   //commonBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+   commonBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+   commonBufferDesc.ByteWidth = sizeof(CommonBuffer);
+   D3D11_SUBRESOURCE_DATA initDataSub = {};
+   initDataSub.pSysMem = &initData;
+   DX::ThrowIfFailed(d3d_.device_->CreateBuffer(&commonBufferDesc, &initDataSub, commonBuffer_.GetAddressOf()), "Failed to create the common buffer");
+
+   D3D11_SAMPLER_DESC samplerDesc = {};
+   samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+   samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+   samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+   samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+   samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+   samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+   DX::ThrowIfFailed(d3d_.device_->CreateSamplerState(&samplerDesc,
+      samplerState_.GetAddressOf()), "Failed to create sampler state");
+
+   D3D11_BLEND_DESC blendDesc = {};
+   blendDesc.RenderTarget[0].BlendEnable = TRUE;
+   blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+   blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+   blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+   blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_DEST_ALPHA;
+   blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+   blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+   blendDesc.RenderTarget[0].RenderTargetWriteMask = 0x0F;
+
+   float blendFactor[] = { .0f, .0f, .0f, .0f };
+
+   d3d_.device_->CreateBlendState(&blendDesc, blendState_.GetAddressOf());
+   d3d_.ctx_->OMSetBlendState(blendState_.Get(), blendFactor, 0xFFFFFFFF);
+
+
 
    Log::Info("Game::LoadContent end");
 
@@ -335,12 +398,12 @@ void Game::Thread() {
    if (data_.gameState == GameState::Play && data_.started) data_.timer++;
 }
 
-void Game::Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color = DirectX::Colors::White, float scaling = 1, DirectX::SpriteEffects effects = DirectX::SpriteEffects_None) {
-   textureSpriteBatch_->Draw(texture_.Get(), pos, sourceRectangle, color, .0f, origin_, scaling, effects);
+void Game::Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color = DirectX::Colors::White, float scaling = 0) {
+   //textureSpriteBatch_->Draw(texture_.Get(), pos, sourceRectangle, color, .0f, origin_, scaling, effects);
 }
 
-void Game::Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::SpriteEffects effects) {
-   Draw(pos, sourceRectangle, DirectX::Colors::White, 1.0f, effects);
+void Game::Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle) {
+   Draw(pos, sourceRectangle, DirectX::Colors::White, 1.0f);
 }
 
 void Game::RenderPanel(RECT rect, PanelState state = PanelState::Out) {
@@ -348,64 +411,64 @@ void Game::RenderPanel(RECT rect, PanelState state = PanelState::Out) {
    auto height = rect.bottom - rect.top;
 
    // lines
-   auto topHorizLine = state == PanelState::In ? &UI::BOTTOM_HORIZONTAL_LINE : &UI::TOP_HORIZONTAL_LINE;
-   auto topHorizLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipVertically : DirectX::SpriteEffects_None;
-   auto bottomHorizLine = state == PanelState::In ? &UI::TOP_HORIZONTAL_LINE : &UI::BOTTOM_HORIZONTAL_LINE;
-   auto bottomHorizLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipVertically : DirectX::SpriteEffects_None;
-   auto leftVertLine = state == PanelState::In ? &UI::RIGHT_VERTICAL_LINE : &UI::LEFT_VERTICAL_LINE;
-   auto leftVertLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipHorizontally : DirectX::SpriteEffects_None;
-   auto rightVertLine = state == PanelState::In ? &UI::LEFT_VERTICAL_LINE : &UI::RIGHT_VERTICAL_LINE;
-   auto rightVertLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipHorizontally : DirectX::SpriteEffects_None;
+   //auto topHorizLine = state == PanelState::In ? &UI::BOTTOM_HORIZONTAL_LINE : &UI::TOP_HORIZONTAL_LINE;
+   //auto topHorizLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipVertically : DirectX::SpriteEffects_None;
+   //auto bottomHorizLine = state == PanelState::In ? &UI::TOP_HORIZONTAL_LINE : &UI::BOTTOM_HORIZONTAL_LINE;
+   //auto bottomHorizLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipVertically : DirectX::SpriteEffects_None;
+   //auto leftVertLine = state == PanelState::In ? &UI::RIGHT_VERTICAL_LINE : &UI::LEFT_VERTICAL_LINE;
+   //auto leftVertLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipHorizontally : DirectX::SpriteEffects_None;
+   //auto rightVertLine = state == PanelState::In ? &UI::LEFT_VERTICAL_LINE : &UI::RIGHT_VERTICAL_LINE;
+   //auto rightVertLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipHorizontally : DirectX::SpriteEffects_None;
    // corners
-   auto tlc = state == PanelState::In ? &UI::BOTTOM_RIGHT_CORNER : &UI::TOP_LEFT_CORNER;
-   auto tlcFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipBoth : DirectX::SpriteEffects_None;
-   auto trc = state == PanelState::In ? &UI::BOTTOM_LEFT_CORNER : &UI::TOP_RIGHT_CORNER;
-   auto trcFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipBoth : DirectX::SpriteEffects_None;
-   auto blc = state == PanelState::In ? &UI::TOP_RIGHT_CORNER : &UI::BOTTOM_LEFT_CORNER;
-   auto blcFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipBoth : DirectX::SpriteEffects_None;
-   auto brc = state == PanelState::In ? &UI::TOP_LEFT_CORNER : &UI::BOTTOM_RIGHT_CORNER;
-   auto brcFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipBoth : DirectX::SpriteEffects_None;
+   //auto tlc = state == PanelState::In ? &UI::BOTTOM_RIGHT_CORNER : &UI::TOP_LEFT_CORNER;
+   //auto tlcFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipBoth : DirectX::SpriteEffects_None;
+   //auto trc = state == PanelState::In ? &UI::BOTTOM_LEFT_CORNER : &UI::TOP_RIGHT_CORNER;
+   //auto trcFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipBoth : DirectX::SpriteEffects_None;
+   //auto blc = state == PanelState::In ? &UI::TOP_RIGHT_CORNER : &UI::BOTTOM_LEFT_CORNER;
+   //auto blcFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipBoth : DirectX::SpriteEffects_None;
+   //auto brc = state == PanelState::In ? &UI::TOP_LEFT_CORNER : &UI::BOTTOM_RIGHT_CORNER;
+   //auto brcFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipBoth : DirectX::SpriteEffects_None;
 
    // top left corner
    DirectX::XMFLOAT2 tlcAt = { float(rect.left), float(rect.top) };
    auto tlcWidth = UI::TOP_LEFT_CORNER.right - UI::TOP_LEFT_CORNER.left;
    auto tlcHeight = UI::TOP_LEFT_CORNER.bottom - UI::TOP_LEFT_CORNER.top;
-   Draw(tlcAt, tlc, tlcFlip);
+   //Draw(tlcAt, tlc, tlcFlip);
 
    // top right corner
    auto trcWidth = UI::TOP_RIGHT_CORNER.right - UI::TOP_RIGHT_CORNER.left;
    DirectX::XMFLOAT2 trcAt = { rect.left + float(width - trcWidth), float(rect.top) };
-   Draw(trcAt, trc, trcFlip);
+   //Draw(trcAt, trc, trcFlip);
 
    // bottom left corner
    auto blcHeight = UI::BOTTOM_LEFT_CORNER.bottom - UI::BOTTOM_LEFT_CORNER.top;
    DirectX::XMFLOAT2 blcAt = { float(rect.left), rect.top + float(height - blcHeight) };
-   Draw(blcAt, blc, blcFlip);
+   //Draw(blcAt, blc, blcFlip);
 
    // bottom right corner
    auto brcWidth = UI::BOTTOM_RIGHT_CORNER.right - UI::BOTTOM_RIGHT_CORNER.left;
    auto brcHeight = UI::BOTTOM_RIGHT_CORNER.bottom - UI::BOTTOM_RIGHT_CORNER.top;
    DirectX::XMFLOAT2 brcAt = { rect.left + float(width - brcWidth), rect.top + float(height - brcHeight) };
-   Draw(brcAt, brc, brcFlip);
+   //Draw(brcAt, brc, brcFlip);
 
    for (auto x = tlcWidth; x <= width - trcWidth; x++) { // horizontally
       DirectX::XMFLOAT2 at = { rect.left + float(x), float(rect.top) };
-      Draw(at, topHorizLine, topHorizLineFlip);
+      //Draw(at, topHorizLine, topHorizLineFlip);
       at.y = rect.top + height - blcHeight;
-      Draw(at, bottomHorizLine, bottomHorizLineFlip);
+      //Draw(at, bottomHorizLine, bottomHorizLineFlip);
    }
 
    for (auto y = tlcHeight; y <= height - blcHeight; y++) { // vertically
       DirectX::XMFLOAT2 at = { float(rect.left), rect.top + float(y) };
-      Draw(at, leftVertLine, leftVertLineFlip);
+      //Draw(at, leftVertLine, leftVertLineFlip);
       at.x = rect.left + width - trcWidth;
-      Draw(at, rightVertLine, rightVertLineFlip);
+      //Draw(at, rightVertLine, rightVertLineFlip);
    }
 
    for (auto x = tlcWidth; x <= width - trcWidth - 1; x++) { // fill center
       for (auto y = tlcHeight; y <= height - blcHeight - 1; y++) {
          DirectX::XMFLOAT2 at = { rect.left + float(x), rect.top + float(y) };
-         Draw(at, &UI::BACKGROUND_RECT);
+         //Draw(at, &UI::BACKGROUND_RECT);
       }
    }
 }
@@ -414,9 +477,9 @@ void Game::RenderTopPanel() {
    long width, height;
    GetDefaultSize(width, height);
 
-   textureSpriteBatch_->Begin(
-      DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred,
-      states_->NonPremultiplied(), states_->LinearWrap());
+   //textureSpriteBatch_->Begin(
+   //   DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred,
+   //   states_->NonPremultiplied(), states_->LinearWrap());
 
    RECT size = { 0, 0, width, UI::TOP_PANEL_HEIGHT };
    RenderPanel(size);
@@ -425,7 +488,7 @@ void Game::RenderTopPanel() {
    RenderRestartButton();
    RenderTimer();
 
-   textureSpriteBatch_->End();
+   //textureSpriteBatch_->End();
 }
 
 void Game::RenderNumber(DirectX::XMFLOAT2& pos, int number) {
@@ -467,7 +530,7 @@ void Game::RenderRestartButton() {
    restartButtonRect_ = { width / 2 - buttonWidth / 2 , height / 2 - buttonHeight / 2, width / 2 + buttonWidth / 2, height / 2 + buttonHeight / 2 };
    RenderPanel(restartButtonRect_, restartButtonPressed_ ? PanelState::In : PanelState::Out);
    DirectX::XMFLOAT2 at = { float(restartButtonRect_.left + 3), float(restartButtonRect_.top + 6) };
-   Draw(at, &Texture::MINE_RECT);
+   //Draw(at, &Texture::MINE_RECT);
 }
 
 void Game::RenderTimer() {
@@ -482,9 +545,9 @@ void Game::RenderTimer() {
 }
 
 void Game::RenderGameField() {
-   textureSpriteBatch_->Begin(
-      DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred,
-      states_->NonPremultiplied(), states_->LinearWrap());
+   //textureSpriteBatch_->Begin(
+   //   DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred,
+   //   states_->NonPremultiplied(), states_->LinearWrap());
 
    for (auto x = 0; x < CELLS_X; x++) {
       for (auto y = 0; y < CELLS_Y; y++) {
@@ -515,7 +578,7 @@ void Game::RenderGameField() {
       }
    }
 
-   textureSpriteBatch_->End();
+   //textureSpriteBatch_->End();
 }
 
 void Game::Render() {
@@ -524,8 +587,52 @@ void Game::Render() {
    d3d_.ctx_->ClearRenderTargetView(d3d_.renderTargetView_.Get(),
       DirectX::Colors::Gray);
 
-   RenderTopPanel();
-   RenderGameField();
+   UINT stride = sizeof(VertexPos);
+   UINT offset = 0;
+
+   d3d_.ctx_->IASetInputLayout(inputLayout_.Get());
+   d3d_.ctx_->IASetVertexBuffers(0, 1, vertexBuffer_.GetAddressOf(), &stride, &offset);
+   d3d_.ctx_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
+   d3d_.ctx_->VSSetShader(vertexShader_.Get(), 0, 0);
+   d3d_.ctx_->PSSetShader(pixelShader_.Get(), 0, 0);
+   d3d_.ctx_->PSSetShaderResources(0, 1, texture_.GetAddressOf());
+   d3d_.ctx_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
+   d3d_.ctx_->PSSetConstantBuffers(0, 1, commonBuffer_.GetAddressOf());
+
+   D3D11_MAPPED_SUBRESOURCE mapResource;
+   DX::ThrowIfFailed(d3d_.ctx_->Map(vertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0,
+      &mapResource), "Failed to map resource");
+
+   auto* spritePtr = (VertexPos*)mapResource.pData;
+
+   auto i = 0;
+   //spritePtr[i++].pos = XMFLOAT3{ 1.f, .9f, .5f };  // trc
+   ////spritePtr[i++].pos = XMFLOAT3{ .0f, .0f, .5f };  // center
+   //spritePtr[i++].pos = XMFLOAT3{ 1.f, -1.f, .5f }; // brc
+   //spritePtr[i++].pos = XMFLOAT3{ -1.f, .9f, .5f }; // tlc
+   //spritePtr[i++].pos = XMFLOAT3{ -1.f, -1.f, .5f }; // blc
+   //spritePtr[3].pos = XMFLOAT3{ -.5f, .5f, .5f };
+
+   spritePtr[i++].pos = d3d_.PixelXMFLOAT3(width_, UI::TOP_PANEL_HEIGHT); // trc
+   spritePtr[i++].pos = d3d_.PixelXMFLOAT3(width_, height_); // brc
+   spritePtr[i++].pos = d3d_.PixelXMFLOAT3(0, UI::TOP_PANEL_HEIGHT); // tlc
+   spritePtr[i++].pos = d3d_.PixelXMFLOAT3(0, height_); // blc
+
+
+   i = 0;
+   spritePtr[i++].tex0 = XMFLOAT2(1, 0); // trc
+   spritePtr[i++].tex0 = XMFLOAT2(1, 1); // brc
+   spritePtr[i++].tex0 = XMFLOAT2(0, 0); // tlc
+   spritePtr[i++].tex0 = XMFLOAT2(0, 1); // blc
+   //spritePtr[2].tex0 = XMFLOAT2(1, 1);
+
+   d3d_.ctx_->Unmap(vertexBuffer_.Get(), 0);
+   d3d_.ctx_->Draw(4, 0);
+
+
+   //RenderTopPanel();
+   //RenderGameField();
 
    d3d_.swapChain_->Present(1, 0);
 }

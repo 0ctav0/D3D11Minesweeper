@@ -40,12 +40,11 @@
 #include <dxgi1_2.h>
 #include <DirectXMath.h>
 #include <DirectXColors.h>
+#include <d3dcompiler.h>
 
 #include <Keyboard.h>
 #include <Mouse.h>
-#include <CommonStates.h>
 #include <SimpleMath.h>
-#include <SpriteBatch.h>
 #include "WICTextureLoader.h"
 #include <Audio.h>
 
