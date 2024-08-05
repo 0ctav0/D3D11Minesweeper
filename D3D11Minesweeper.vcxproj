@@ -160,6 +160,8 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="SoundSystem.cpp" />
+    <ClCompile Include="SpriteRenderer.cpp" />
+    <ClCompile Include="Types.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Cell.h" />
@@ -167,6 +169,8 @@
     <ClInclude Include="game.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="SoundSystem.h" />
+    <ClInclude Include="SpriteRenderer.h" />
+    <ClInclude Include="Types.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shader.fx" />

@@ -1,7 +1,8 @@
 ﻿#include "pch.h"
+#include "Game.h"
+#include "Types.h"
 #include "DeviceManager.h"
 #include "SoundSystem.h"
-#include "Game.h"
 
 namespace Texture {
    auto constexpr FILENAME = L"img/texture.png";
@@ -86,6 +87,7 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
 
    auto d3dSuccess = d3d_.Init(hwnd, width_, height_);
    auto soundSuccess = sound_.Init();
+   auto spriteSuccess = sprite_.Init(&d3d_, Texture::FILENAME);
 
    keyboard_ = std::make_unique<DirectX::Keyboard>();
    mouse_ = std::make_unique<DirectX::Mouse>();
@@ -93,7 +95,7 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
 
    InitCells();
 
-   return d3dSuccess && soundSuccess && LoadContent();
+   return d3dSuccess && soundSuccess && spriteSuccess && LoadContent();
 }
 
 void Game::InitCells() {
@@ -296,7 +298,8 @@ bool Game::LoadContent() {
    D3D11_INPUT_ELEMENT_DESC inputDesc[] = {
       {"SV_POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
          D3D11_INPUT_PER_VERTEX_DATA, 0},
-      {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12,
+      {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+      {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12 + 16,
          D3D11_INPUT_PER_VERTEX_DATA, 0}
    };
 
@@ -306,30 +309,6 @@ bool Game::LoadContent() {
       inputDesc, totalLayoutElements, vsBlob->GetBufferPointer(),
       vsBlob->GetBufferSize(), inputLayout_.GetAddressOf()), "Failed to create an input layout");
 
-   Microsoft::WRL::ComPtr<ID3D11Resource> resource;
-   DX::ThrowIfFailed(DirectX::CreateWICTextureFromFile(d3d_.device_.Get(),
-      Texture::FILENAME, resource.GetAddressOf(), texture_.ReleaseAndGetAddressOf()), "Failed to create a texture from a file");
-
-
-   D3D11_BUFFER_DESC vertexDesc = {};
-   vertexDesc.Usage = D3D11_USAGE_DYNAMIC;
-   vertexDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-   vertexDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-   vertexDesc.ByteWidth = sizeof(VertexPos) * 4;
-
-   DX::ThrowIfFailed(d3d_.device_->CreateBuffer(&vertexDesc, 0, vertexBuffer_.GetAddressOf()), "Failed to create the vertex buffer");
-
-   // setting up common buffer
-   static_assert((sizeof(CommonBuffer) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
-   CommonBuffer initData = { width_, height_ };
-   D3D11_BUFFER_DESC commonBufferDesc = {};
-   commonBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-   //commonBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-   commonBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-   commonBufferDesc.ByteWidth = sizeof(CommonBuffer);
-   D3D11_SUBRESOURCE_DATA initDataSub = {};
-   initDataSub.pSysMem = &initData;
-   DX::ThrowIfFailed(d3d_.device_->CreateBuffer(&commonBufferDesc, &initDataSub, commonBuffer_.GetAddressOf()), "Failed to create the common buffer");
 
    D3D11_SAMPLER_DESC samplerDesc = {};
    samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
@@ -396,14 +375,6 @@ void Game::Update(float dt) {
 
 void Game::Thread() {
    if (data_.gameState == GameState::Play && data_.started) data_.timer++;
-}
-
-void Game::Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color = DirectX::Colors::White, float scaling = 0) {
-   //textureSpriteBatch_->Draw(texture_.Get(), pos, sourceRectangle, color, .0f, origin_, scaling, effects);
-}
-
-void Game::Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle) {
-   Draw(pos, sourceRectangle, DirectX::Colors::White, 1.0f);
 }
 
 void Game::RenderPanel(RECT rect, PanelState state = PanelState::Out) {
@@ -503,11 +474,11 @@ void Game::RenderNumber(DirectX::XMFLOAT2& pos, int number) {
    for (auto digit : digits) {
       if (digit == '-') {
          DirectX::XMFLOAT2 minusAt = { pos.x, pos.y + Texture::NUMBER_HEIGHT / 2 };
-         Draw(minusAt, &Texture::MINUS, DirectX::Colors::DarkRed);
+         //Draw(minusAt, &Texture::MINUS, DirectX::Colors::DarkRed);
       }
       else {
          auto rect = Texture::GetDigitRect(digit);
-         Draw(pos, &rect, DirectX::Colors::DarkRed);
+         //Draw(pos, &rect, DirectX::Colors::DarkRed);
       }
       pos.x += Texture::NUMBER_WIDTH;
    }
@@ -545,40 +516,51 @@ void Game::RenderTimer() {
 }
 
 void Game::RenderGameField() {
-   //textureSpriteBatch_->Begin(
-   //   DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred,
-   //   states_->NonPremultiplied(), states_->LinearWrap());
+   sprite_.Begin();
 
    for (auto x = 0; x < CELLS_X; x++) {
       for (auto y = 0; y < CELLS_Y; y++) {
-         DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH), float(y * CELL_HEIGHT) + UI::TOP_PANEL_HEIGHT };
+         RECT at;
+         at.left = x * CELL_WIDTH;
+         at.right = at.left + CELL_WIDTH;
+         at.top = y * CELL_HEIGHT + UI::TOP_PANEL_HEIGHT;
+         at.bottom = at.top + CELL_HEIGHT;
          auto cell = GetCell(x, y);
          if (!cell->opened) {
             auto color = cell->pressed ? DirectX::Colors::Red : DirectX::Colors::White;
-            Draw(at, &Texture::CELL_RECT, color, Texture::SCALING);
+            sprite_.Draw(&at, &Texture::CELL_RECT, &color);
             if (data_.gameState == GameState::Defeat && cell->mined) {
-               Draw(at, &Texture::MINE_RECT, DirectX::Colors::White, Texture::SCALING);
+               sprite_.Draw(&at, &Texture::MINE_RECT, &DirectX::Colors::White);
             }
             if (cell->IsMarked()) {
-               DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + 6,
-                                       float(y * CELL_HEIGHT) + 2 + UI::TOP_PANEL_HEIGHT };
+               auto paddingX = 6; auto paddingY = 2;
+               RECT at;
+               at.left = x * CELL_WIDTH + paddingX;
+               at.right = at.left + CELL_WIDTH - paddingX * 2;
+               at.top = y * CELL_HEIGHT + UI::TOP_PANEL_HEIGHT + paddingY;
+               at.bottom = at.top + CELL_HEIGHT - paddingY * 2;
                auto texture = cell->state == RCellState::Flagged ? &Texture::FLAG_RECT : &Texture::QUESTION_MARK_RECT;
-               Draw(at, texture, DirectX::Colors::White, Texture::SCALING);
+               sprite_.Draw(&at, texture);
             }
          }
          else if (cell->mined) {
-            Draw(at, &Texture::MINE_RECT, DirectX::Colors::White, Texture::SCALING);
+            sprite_.Draw(&at, &Texture::MINE_RECT);
          }
          else if (cell->minesNear > 0) {
-            DirectX::XMFLOAT2 at = { float(x * CELL_WIDTH) + NUMBER_WIDTH_HALF,
-                                    float(y * CELL_HEIGHT) + NUMBER_HEIGHT_HALF + UI::TOP_PANEL_HEIGHT };
+            auto paddingX = NUMBER_WIDTH_HALF;
+            auto paddingY = NUMBER_HEIGHT_HALF;
+            RECT at;
+            at.left = x * CELL_WIDTH + paddingX;
+            at.right = at.left + CELL_WIDTH - paddingX * 2;
+            at.top = y * CELL_HEIGHT + UI::TOP_PANEL_HEIGHT + paddingY;
+            at.bottom = at.top + CELL_HEIGHT - paddingY * 2;
             auto rect = Texture::GetDigitRect(cell->minesNear);
-            Draw(at, &rect, NUMBER_TINTS[cell->minesNear - 1], Texture::SCALING * Texture::SCALING);
+            sprite_.Draw(&at, &rect, &NUMBER_TINTS[cell->minesNear - 1]);
          }
       }
    }
 
-   //textureSpriteBatch_->End();
+   sprite_.End();
 }
 
 void Game::Render() {
@@ -591,48 +573,16 @@ void Game::Render() {
    UINT offset = 0;
 
    d3d_.ctx_->IASetInputLayout(inputLayout_.Get());
-   d3d_.ctx_->IASetVertexBuffers(0, 1, vertexBuffer_.GetAddressOf(), &stride, &offset);
+   d3d_.ctx_->IASetVertexBuffers(0, 1, sprite_.vertexBuffer_.GetAddressOf(), &stride, &offset);
    d3d_.ctx_->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
    d3d_.ctx_->VSSetShader(vertexShader_.Get(), 0, 0);
    d3d_.ctx_->PSSetShader(pixelShader_.Get(), 0, 0);
-   d3d_.ctx_->PSSetShaderResources(0, 1, texture_.GetAddressOf());
+   d3d_.ctx_->PSSetShaderResources(0, 1, sprite_.texture_.GetAddressOf());
    d3d_.ctx_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
-   d3d_.ctx_->PSSetConstantBuffers(0, 1, commonBuffer_.GetAddressOf());
 
-   D3D11_MAPPED_SUBRESOURCE mapResource;
-   DX::ThrowIfFailed(d3d_.ctx_->Map(vertexBuffer_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0,
-      &mapResource), "Failed to map resource");
-
-   auto* spritePtr = (VertexPos*)mapResource.pData;
-
-   auto i = 0;
-   //spritePtr[i++].pos = XMFLOAT3{ 1.f, .9f, .5f };  // trc
-   ////spritePtr[i++].pos = XMFLOAT3{ .0f, .0f, .5f };  // center
-   //spritePtr[i++].pos = XMFLOAT3{ 1.f, -1.f, .5f }; // brc
-   //spritePtr[i++].pos = XMFLOAT3{ -1.f, .9f, .5f }; // tlc
-   //spritePtr[i++].pos = XMFLOAT3{ -1.f, -1.f, .5f }; // blc
-   //spritePtr[3].pos = XMFLOAT3{ -.5f, .5f, .5f };
-
-   spritePtr[i++].pos = d3d_.PixelXMFLOAT3(width_, UI::TOP_PANEL_HEIGHT); // trc
-   spritePtr[i++].pos = d3d_.PixelXMFLOAT3(width_, height_); // brc
-   spritePtr[i++].pos = d3d_.PixelXMFLOAT3(0, UI::TOP_PANEL_HEIGHT); // tlc
-   spritePtr[i++].pos = d3d_.PixelXMFLOAT3(0, height_); // blc
-
-
-   i = 0;
-   spritePtr[i++].tex0 = XMFLOAT2(1, 0); // trc
-   spritePtr[i++].tex0 = XMFLOAT2(1, 1); // brc
-   spritePtr[i++].tex0 = XMFLOAT2(0, 0); // tlc
-   spritePtr[i++].tex0 = XMFLOAT2(0, 1); // blc
-   //spritePtr[2].tex0 = XMFLOAT2(1, 1);
-
-   d3d_.ctx_->Unmap(vertexBuffer_.Get(), 0);
-   d3d_.ctx_->Draw(4, 0);
-
-
+   RenderGameField();
    //RenderTopPanel();
-   //RenderGameField();
 
    d3d_.swapChain_->Present(1, 0);
 }

@@ -2,6 +2,7 @@
 
 #include "DeviceManager.h"
 #include "SoundSystem.h"
+#include "SpriteRenderer.h"
 #include "Cell.h"
 
 using DirectX::XMFLOAT2;
@@ -21,7 +22,7 @@ enum GameState {
 };
 
 auto constexpr CELLS_X = 40;
-auto constexpr CELLS_Y = 24;
+auto constexpr CELLS_Y = 20;
 int constexpr MINES_COUNT = CELLS_X * CELLS_Y / 100.0f * Difficulty::Hard;
 auto constexpr NEED_TO_OPEN = CELLS_X * CELLS_Y - MINES_COUNT;
 
@@ -45,10 +46,6 @@ struct Pos {
    }
 };
 
-struct VertexPos {
-   XMFLOAT3 pos;
-   XMFLOAT2 tex0;
-};
 
 struct GameData {
    std::array<std::array<Cell, CELLS_Y>, CELLS_X> cells = {};
@@ -62,12 +59,6 @@ struct GameData {
 
 enum PanelState : BYTE {
    In, Out
-};
-
-struct CommonBuffer {
-   float width;
-   float height;
-   XMFLOAT2 reserved;
 };
 
 class Game {
@@ -105,8 +96,6 @@ private:
 
    std::vector<char> GetDigits(int number);
 
-   void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle, DirectX::FXMVECTOR color, float scaling);
-   void Draw(DirectX::XMFLOAT2 const& pos, RECT const* sourceRectangle);
    void RenderPanel(RECT size, PanelState state);
    void RenderTopPanel();
    void RenderNumber(DirectX::XMFLOAT2& pos, int number);
@@ -122,6 +111,7 @@ private:
 
    DeviceManager d3d_ = {};
    SoundSystem sound_ = {};
+   SpriteRenderer sprite_ = {};
 
    std::unique_ptr<DirectX::Keyboard> keyboard_;
    DirectX::Keyboard::KeyboardStateTracker keyTracker_;
@@ -130,14 +120,11 @@ private:
    DirectX::Mouse::Mouse::ButtonStateTracker mouseTracker_;
    bool leftHeld_ = false;
 
-   Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture_;
    Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader_;
    Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader_;
    Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout_;
-   Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer_;
    Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState_;
    Microsoft::WRL::ComPtr<ID3D11BlendState> blendState_;
-   Microsoft::WRL::ComPtr<ID3D11Buffer> commonBuffer_; // to pass different data, i.e. window width, height
 
    RECT restartButtonRect_ = {};
    bool restartButtonPressed_ = false;
