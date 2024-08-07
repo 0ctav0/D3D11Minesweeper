@@ -7,7 +7,7 @@ bool SpriteRenderer::Init(DeviceManager* d3d, const wchar_t* filename) {
    d3d_ = d3d;
    Microsoft::WRL::ComPtr<ID3D11Resource> resource;
    DX::ThrowIfFailed(DirectX::CreateWICTextureFromFile(d3d_->device_.Get(),
-      filename, resource.GetAddressOf(), texture_.ReleaseAndGetAddressOf()), "Failed to create a texture from a file");
+      filename, resource.GetAddressOf(), textureView_.ReleaseAndGetAddressOf()), "Failed to create a texture from a file");
 
    Microsoft::WRL::ComPtr<ID3D11Texture2D> tex;
    DX::ThrowIfFailed(resource.As(&tex), "Failed resource as tex");
@@ -43,28 +43,63 @@ void SpriteRenderer::End() {
    d3d_->ctx_->Draw(vertI_, 0);
 }
 
-void SpriteRenderer::Draw(const RECT* at, const RECT* tex, const DirectX::XMVECTORF32* color) {
+void SpriteRenderer::Draw(const RECT1* at, const RECT1* tex, const DirectX::XMVECTORF32* color, Mirror mirror, bool immediate) {
+   auto left = tex->left / width_;
+   auto right = tex->right / width_;
+   auto top = tex->top / height_;
+   auto bottom = tex->bottom / height_;
+
+   auto trcTex = XMFLOAT2(
+      mirror & Mirror::FlipHorizontally ? left : right,
+      mirror & Mirror::FlipVertically ? bottom : top);
+   auto brcTex = XMFLOAT2(
+      mirror & Mirror::FlipHorizontally ? left : right,
+      mirror & Mirror::FlipVertically ? top : bottom);
+   auto tlcTex = XMFLOAT2(
+      mirror & Mirror::FlipHorizontally ? right : left,
+      mirror & Mirror::FlipVertically ? bottom : top);
+   auto blcTex = XMFLOAT2(
+      mirror & Mirror::FlipHorizontally ? right : left,
+      mirror & Mirror::FlipVertically ? top : bottom);
+
+   if (immediate) Begin();
+
    spritePtr_[vertI_].pos = d3d_->PixelXMFLOAT3(at->right, at->top); // trc
    DirectX::XMStoreFloat4(&spritePtr_[vertI_].color, *color);
-   spritePtr_[vertI_].tex0 = XMFLOAT2(tex->right / width_, tex->top / height_);
+   spritePtr_[vertI_].tex0 = trcTex;
    vertI_++;
 
    spritePtr_[vertI_].pos = d3d_->PixelXMFLOAT3(at->right, at->bottom); // brc
    DirectX::XMStoreFloat4(&spritePtr_[vertI_].color, *color);
-   spritePtr_[vertI_].tex0 = XMFLOAT2(tex->right / width_, tex->bottom / height_);
+   spritePtr_[vertI_].tex0 = brcTex;
    vertI_++;
 
    spritePtr_[vertI_].pos = d3d_->PixelXMFLOAT3(at->left, at->top); // tlc
    DirectX::XMStoreFloat4(&spritePtr_[vertI_].color, *color);
-   spritePtr_[vertI_].tex0 = XMFLOAT2(tex->left / width_, tex->top / height_);
+   spritePtr_[vertI_].tex0 = tlcTex;
    vertI_++;
 
    spritePtr_[vertI_].pos = d3d_->PixelXMFLOAT3(at->left, at->bottom); // blc
    DirectX::XMStoreFloat4(&spritePtr_[vertI_].color, *color);
-   spritePtr_[vertI_].tex0 = XMFLOAT2(tex->left / width_, tex->bottom / height_);
+   spritePtr_[vertI_].tex0 = blcTex;
    vertI_++;
+
+   if (immediate) End();
 }
 
-void SpriteRenderer::Draw(const RECT* at, const RECT* tex) {
-   Draw(at, tex, &DirectX::Colors::White);
+void SpriteRenderer::Draw(const RECT1* at, const RECT1* tex, const DirectX::XMVECTORF32* color) {
+   Draw(at, tex, color, Mirror::None, false);
+}
+
+
+void SpriteRenderer::Draw(const RECT1* at, const RECT1* tex, Mirror mirror) {
+   Draw(at, tex, &DirectX::Colors::White, mirror, false);
+}
+
+void SpriteRenderer::Draw(const RECT1* at, const RECT1* tex, bool immediate) {
+   Draw(at, tex, &DirectX::Colors::White, Mirror::None, immediate);
+}
+
+void SpriteRenderer::Draw(const RECT1* at, const RECT1* tex) {
+   Draw(at, tex, &DirectX::Colors::White, Mirror::None, false);
 }

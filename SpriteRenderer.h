@@ -13,12 +13,15 @@ private:
    unsigned long vertI_;
 
 public:
-   Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture_;
+   Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> textureView_;
    Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer_;
 
    bool Init(DeviceManager* d3d, const wchar_t* filename);
    void Begin();
    void End();
-   void Draw(const RECT* at, const RECT* tex, const DirectX::XMVECTORF32* color);
-   void Draw(const RECT* at, const RECT* tex);
+   void Draw(const RECT1* at, const RECT1* tex, const DirectX::XMVECTORF32* color, Mirror mirror, bool immediate);
+   void Draw(const RECT1* at, const RECT1* tex, const DirectX::XMVECTORF32* color);
+   void Draw(const RECT1* at, const RECT1* tex, Mirror mirror);
+   void Draw(const RECT1* at, const RECT1* tex, bool immediate);
+   void Draw(const RECT1* at, const RECT1* tex);
 };

@@ -69,7 +69,7 @@ bool DeviceManager::Init(HWND hwnd, long width, long height) {
    D3D11_VIEWPORT viewport = {};
    viewport.Width = static_cast<float>(width);
    viewport.Height = static_cast<float>(height);
-   viewport.MaxDepth = 0.0f;
+   viewport.MinDepth = 0.0f;
    viewport.MaxDepth = 1.0f;
 
    ctx_->RSSetViewports(1, &viewport);

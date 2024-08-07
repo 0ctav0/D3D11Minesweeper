@@ -10,22 +10,22 @@ namespace Texture {
    auto constexpr CELL_HEIGHT = 64;
    auto constexpr NUMBER_WIDTH = 48;
    auto constexpr NUMBER_HEIGHT = 63;
-   RECT CELL_RECT = { 0, 0, CELL_WIDTH, CELL_HEIGHT };
-   RECT SELECTED_CELL_RECT = { CELL_WIDTH, 0, CELL_WIDTH * 2, CELL_HEIGHT };
-   RECT FLAG_RECT = { CELL_WIDTH * 2, 0, CELL_WIDTH * 3, CELL_HEIGHT };
-   RECT MINE_RECT = { CELL_WIDTH * 3, 0, CELL_WIDTH * 4, CELL_HEIGHT };
-   RECT QUESTION_MARK_RECT = { CELL_WIDTH * 4, 0, CELL_WIDTH * 5, CELL_HEIGHT };
-   RECT MINUS = { 56, 152, 88, 156 };
+   RECT1 CELL_RECT = { 0, 0, CELL_WIDTH, CELL_HEIGHT };
+   RECT1 SELECTED_CELL_RECT = { CELL_WIDTH, 0, CELL_WIDTH * 2, CELL_HEIGHT };
+   RECT1 FLAG_RECT = { CELL_WIDTH * 2, 0, CELL_WIDTH * 3, CELL_HEIGHT };
+   RECT1 MINE_RECT = { CELL_WIDTH * 3, 0, CELL_WIDTH * 4, CELL_HEIGHT };
+   RECT1 QUESTION_MARK_RECT = { CELL_WIDTH * 4, 0, CELL_WIDTH * 5, CELL_HEIGHT };
+   RECT1 MINUS = { 56, 152, 88, 156 };
 
    auto constexpr NUMBER_TOP_AT = 96;
-   auto constexpr NUMBER_BOTTOM_AT = 158;
+   auto constexpr NUMBER_BOTTOM_AT = 159;
 
    auto constexpr SCALING = .5f;
 
-   RECT GetDigitRect(BYTE digit) {
+   RECT1 GetDigitRect(BYTE digit) {
       auto left = digit * Texture::NUMBER_WIDTH;
       auto right = (digit + 1) * Texture::NUMBER_WIDTH;
-      RECT rc = { left, Texture::NUMBER_TOP_AT, right, Texture::NUMBER_BOTTOM_AT };
+      RECT1 rc = { left, Texture::NUMBER_TOP_AT, right, Texture::NUMBER_BOTTOM_AT };
       return rc;
    }
 };
@@ -39,15 +39,15 @@ namespace UI {
    auto constexpr MINES_COUNT_CHAR_NUMBER = 3;
    auto constexpr TOP_PANEL_WIDTH = CELLS_X * CELL_WIDTH;
    auto constexpr TOP_PANEL_HEIGHT = Texture::CELL_HEIGHT * 2;
-   RECT TOP_LEFT_CORNER = { 0, 0, 5, 5 };
-   RECT TOP_RIGHT_CORNER = { 59, 0, 64, 5 };
-   RECT BOTTOM_LEFT_CORNER = { 0, 59, 5, 64 };
-   RECT BOTTOM_RIGHT_CORNER = { 59, 59, 64, 64 };
-   RECT TOP_HORIZONTAL_LINE = { 5, 0, 6, 5 };
-   RECT BOTTOM_HORIZONTAL_LINE = { 5, 59, 6, 64 };
-   RECT LEFT_VERTICAL_LINE = { 0, 5, 5, 6 };
-   RECT RIGHT_VERTICAL_LINE = { 59, 5, 64, 6 };
-   RECT BACKGROUND_RECT = { 5,5, 6,6 };
+   RECT1 TOP_LEFT_CORNER = { 0, 0, 5, 5 };
+   RECT1 TOP_RIGHT_CORNER = { 59, 0, 64, 5 };
+   RECT1 BOTTOM_LEFT_CORNER = { 0, 59, 5, 64 };
+   RECT1 BOTTOM_RIGHT_CORNER = { 59, 59, 64, 64 };
+   RECT1 TOP_HORIZONTAL_LINE = { 5, 0, 58, 5 };
+   RECT1 BOTTOM_HORIZONTAL_LINE = { 5, 59, 58, 64 };
+   RECT1 LEFT_VERTICAL_LINE = { 0, 5, 5, 6 };
+   RECT1 RIGHT_VERTICAL_LINE = { 59, 5, 64, 6 };
+   RECT1 BACKGROUND_RECT = { 5, 5, 54 + 5, 54 + 5 };
 }
 
 Game::~Game() {
@@ -77,7 +77,7 @@ bool Game::Init(HINSTANCE hInstance, HWND hwnd) {
    hInstance_ = hInstance;
    hwnd_ = hwnd;
 
-   RECT dimensions;
+   RECT1 dimensions;
    GetClientRect(hwnd, &dimensions);
 
    width_ = dimensions.right - dimensions.left;
@@ -246,8 +246,8 @@ void Game::Start(int x, int y) {
 }
 
 void Game::Defeat() {
-   data_.gameState = GameState::Defeat;
-   sound_.defeat->Play();
+   //data_.gameState = GameState::Defeat;
+   //sound_.defeat->Play();
 }
 
 void Game::Win() {
@@ -311,11 +311,12 @@ bool Game::LoadContent() {
 
 
    D3D11_SAMPLER_DESC samplerDesc = {};
-   samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
-   samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
-   samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-   samplerDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-   samplerDesc.Filter = D3D11_FILTER_ANISOTROPIC;
+   samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+   samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+   samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+   samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+   samplerDesc.MaxAnisotropy = 1;
+   samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
    samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
    DX::ThrowIfFailed(d3d_.device_->CreateSamplerState(&samplerDesc,
@@ -377,19 +378,19 @@ void Game::Thread() {
    if (data_.gameState == GameState::Play && data_.started) data_.timer++;
 }
 
-void Game::RenderPanel(RECT rect, PanelState state = PanelState::Out) {
+void Game::RenderPanel(RECT1 rect, PanelState state = PanelState::Out) {
    auto width = rect.right - rect.left;
    auto height = rect.bottom - rect.top;
 
    // lines
-   //auto topHorizLine = state == PanelState::In ? &UI::BOTTOM_HORIZONTAL_LINE : &UI::TOP_HORIZONTAL_LINE;
-   //auto topHorizLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipVertically : DirectX::SpriteEffects_None;
-   //auto bottomHorizLine = state == PanelState::In ? &UI::TOP_HORIZONTAL_LINE : &UI::BOTTOM_HORIZONTAL_LINE;
-   //auto bottomHorizLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipVertically : DirectX::SpriteEffects_None;
-   //auto leftVertLine = state == PanelState::In ? &UI::RIGHT_VERTICAL_LINE : &UI::LEFT_VERTICAL_LINE;
-   //auto leftVertLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipHorizontally : DirectX::SpriteEffects_None;
-   //auto rightVertLine = state == PanelState::In ? &UI::LEFT_VERTICAL_LINE : &UI::RIGHT_VERTICAL_LINE;
-   //auto rightVertLineFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipHorizontally : DirectX::SpriteEffects_None;
+   auto topHorizLine = state == PanelState::In ? &UI::BOTTOM_HORIZONTAL_LINE : &UI::TOP_HORIZONTAL_LINE;
+   auto topHorizLineFlip = state == PanelState::In ? Mirror::FlipVertically : Mirror::None;
+   auto bottomHorizLine = state == PanelState::In ? &UI::TOP_HORIZONTAL_LINE : &UI::BOTTOM_HORIZONTAL_LINE;
+   auto bottomHorizLineFlip = state == PanelState::In ? Mirror::FlipVertically : Mirror::None;
+   auto leftVertLine = state == PanelState::In ? &UI::RIGHT_VERTICAL_LINE : &UI::LEFT_VERTICAL_LINE;
+   auto leftVertLineFlip = state == PanelState::In ? Mirror::FlipHorizontally : Mirror::None;
+   auto rightVertLine = state == PanelState::In ? &UI::LEFT_VERTICAL_LINE : &UI::RIGHT_VERTICAL_LINE;
+   auto rightVertLineFlip = state == PanelState::In ? Mirror::FlipHorizontally : Mirror::None;
    // corners
    //auto tlc = state == PanelState::In ? &UI::BOTTOM_RIGHT_CORNER : &UI::TOP_LEFT_CORNER;
    //auto tlcFlip = state == PanelState::In ? DirectX::SpriteEffects_FlipBoth : DirectX::SpriteEffects_None;
@@ -402,31 +403,37 @@ void Game::RenderPanel(RECT rect, PanelState state = PanelState::Out) {
 
    // top left corner
    DirectX::XMFLOAT2 tlcAt = { float(rect.left), float(rect.top) };
-   auto tlcWidth = UI::TOP_LEFT_CORNER.right - UI::TOP_LEFT_CORNER.left;
-   auto tlcHeight = UI::TOP_LEFT_CORNER.bottom - UI::TOP_LEFT_CORNER.top;
+   auto tlcWidth = UI::TOP_LEFT_CORNER.Width();
+   auto tlcHeight = UI::TOP_LEFT_CORNER.Height();
    //Draw(tlcAt, tlc, tlcFlip);
 
    // top right corner
-   auto trcWidth = UI::TOP_RIGHT_CORNER.right - UI::TOP_RIGHT_CORNER.left;
+   auto trcWidth = UI::TOP_RIGHT_CORNER.Width();
    DirectX::XMFLOAT2 trcAt = { rect.left + float(width - trcWidth), float(rect.top) };
    //Draw(trcAt, trc, trcFlip);
 
    // bottom left corner
-   auto blcHeight = UI::BOTTOM_LEFT_CORNER.bottom - UI::BOTTOM_LEFT_CORNER.top;
+   auto blcHeight = UI::BOTTOM_LEFT_CORNER.Height();
    DirectX::XMFLOAT2 blcAt = { float(rect.left), rect.top + float(height - blcHeight) };
    //Draw(blcAt, blc, blcFlip);
 
    // bottom right corner
-   auto brcWidth = UI::BOTTOM_RIGHT_CORNER.right - UI::BOTTOM_RIGHT_CORNER.left;
-   auto brcHeight = UI::BOTTOM_RIGHT_CORNER.bottom - UI::BOTTOM_RIGHT_CORNER.top;
+   auto brcWidth = UI::BOTTOM_RIGHT_CORNER.Width();
+   auto brcHeight = UI::BOTTOM_RIGHT_CORNER.Height();
    DirectX::XMFLOAT2 brcAt = { rect.left + float(width - brcWidth), rect.top + float(height - brcHeight) };
    //Draw(brcAt, brc, brcFlip);
 
    for (auto x = tlcWidth; x <= width - trcWidth; x++) { // horizontally
-      DirectX::XMFLOAT2 at = { rect.left + float(x), float(rect.top) };
-      //Draw(at, topHorizLine, topHorizLineFlip);
-      at.y = rect.top + height - blcHeight;
-      //Draw(at, bottomHorizLine, bottomHorizLineFlip);
+      RECT1 at;
+      at.left = rect.left + x;
+      at.right = at.left + 1;
+      at.top = rect.top;
+      at.bottom = at.top + 5;
+
+      //sprite_.Draw(&at, topHorizLine, topHorizLineFlip);
+      at.top = rect.top + height - blcHeight;
+      at.bottom = at.top + 5;
+      //sprite_.Draw(&at, bottomHorizLine, bottomHorizLineFlip);
    }
 
    for (auto y = tlcHeight; y <= height - blcHeight; y++) { // vertically
@@ -436,30 +443,58 @@ void Game::RenderPanel(RECT rect, PanelState state = PanelState::Out) {
       //Draw(at, rightVertLine, rightVertLineFlip);
    }
 
-   for (auto x = tlcWidth; x <= width - trcWidth - 1; x++) { // fill center
-      for (auto y = tlcHeight; y <= height - blcHeight - 1; y++) {
-         DirectX::XMFLOAT2 at = { rect.left + float(x), rect.top + float(y) };
-         //Draw(at, &UI::BACKGROUND_RECT);
+   auto bgWidth = UI::BACKGROUND_RECT.Width();
+   auto bgHeight = UI::BACKGROUND_RECT.Height();;
+   RECT1 bgRect = rect;
+   bgRect.left += UI::LEFT_VERTICAL_LINE.Width();
+   bgRect.right -= UI::RIGHT_VERTICAL_LINE.Width();
+   bgRect.top += UI::TOP_HORIZONTAL_LINE.Height();
+   bgRect.bottom -= UI::BOTTOM_HORIZONTAL_LINE.Height();
+   RECT1 atI = { bgRect.left, bgRect.top, bgRect.left + bgWidth, bgRect.top + bgHeight };
+   /* for (auto x = 0; x <= width / bgWidth; x++) {
+       for (auto y = 0; y <= height / bgHeight; y++) {
+          RECT1 at;
+          at.left = bgRect.left + bgWidth * x;
+          at.right = at.left + bgWidth;
+          at.top = bgRect.top + bgHeight * y;
+          at.bottom = at.top + bgHeight;
+
+          sprite_.Draw(&at, &UI::BACKGROUND_RECT);
+       }
+    }*/
+   sprite_.Begin();
+   while (atI.Intersects(bgRect)) {
+      sprite_.Draw(&atI, &UI::BACKGROUND_RECT, false);
+      atI.MoveX(bgWidth);
+      if (atI.left > bgRect.right) {
+         sprite_.End();
+         atI.MoveY(bgHeight);
+         atI.left = bgRect.left;
+         atI.right = bgRect.left + bgWidth;
+         sprite_.Begin();
       }
    }
+   sprite_.End();
 }
 
 void Game::RenderTopPanel() {
    long width, height;
    GetDefaultSize(width, height);
 
-   //textureSpriteBatch_->Begin(
-   //   DirectX::DX11::SpriteSortMode::SpriteSortMode_Deferred,
-   //   states_->NonPremultiplied(), states_->LinearWrap());
+   //sprite_.Begin();
 
-   RECT size = { 0, 0, width, UI::TOP_PANEL_HEIGHT };
+   RECT1 size = { 0, 0, width, UI::TOP_PANEL_HEIGHT };
    RenderPanel(size);
 
+   //sprite_.End();
+
+   sprite_.Begin();
+
    RenderMinesNumber();
+   sprite_.End();
    RenderRestartButton();
    RenderTimer();
 
-   //textureSpriteBatch_->End();
 }
 
 void Game::RenderNumber(DirectX::XMFLOAT2& pos, int number) {
@@ -472,13 +507,17 @@ void Game::RenderNumber(DirectX::XMFLOAT2& pos, int number) {
    }
    // digits
    for (auto digit : digits) {
+      RECT1 at;
+      at.left = pos.x;
+      at.right = pos.x + Texture::NUMBER_WIDTH;
+      at.top = pos.y + Texture::NUMBER_HEIGHT / 2.f;
+      at.bottom = at.top + Texture::NUMBER_HEIGHT - Texture::NUMBER_HEIGHT / 2.f;
       if (digit == '-') {
-         DirectX::XMFLOAT2 minusAt = { pos.x, pos.y + Texture::NUMBER_HEIGHT / 2 };
-         //Draw(minusAt, &Texture::MINUS, DirectX::Colors::DarkRed);
+         sprite_.Draw(&at, &Texture::MINUS, &DirectX::Colors::DarkRed);
       }
       else {
          auto rect = Texture::GetDigitRect(digit);
-         //Draw(pos, &rect, DirectX::Colors::DarkRed);
+         sprite_.Draw(&at, &rect, &DirectX::Colors::DarkRed);
       }
       pos.x += Texture::NUMBER_WIDTH;
    }
@@ -487,9 +526,9 @@ void Game::RenderNumber(DirectX::XMFLOAT2& pos, int number) {
 void Game::RenderMinesNumber() {
    int minesAndFlagged = MINES_COUNT - data_.flagged;
    DirectX::XMFLOAT2 at = { 10, 40 };
-   RECT size = { at.x, at.y - 10, at.x + Texture::NUMBER_WIDTH * UI::MINES_COUNT_CHAR_NUMBER + 10, at.y + Texture::NUMBER_HEIGHT + 10 };
-   RenderPanel(size, PanelState::In);
-   RenderNumber(at, minesAndFlagged);
+   RECT1 size = { at.x, at.y - 10, at.x + Texture::NUMBER_WIDTH * UI::MINES_COUNT_CHAR_NUMBER + 10, at.y + Texture::NUMBER_HEIGHT + 10 };
+   //RenderPanel(size, PanelState::In);
+   //RenderNumber(at, minesAndFlagged);
 }
 
 void Game::RenderRestartButton() {
@@ -498,10 +537,19 @@ void Game::RenderRestartButton() {
    height = UI::TOP_PANEL_HEIGHT;
    auto buttonWidth = Texture::CELL_WIDTH + 6;
    auto buttonHeight = Texture::CELL_HEIGHT + 6;
-   restartButtonRect_ = { width / 2 - buttonWidth / 2 , height / 2 - buttonHeight / 2, width / 2 + buttonWidth / 2, height / 2 + buttonHeight / 2 };
-   RenderPanel(restartButtonRect_, restartButtonPressed_ ? PanelState::In : PanelState::Out);
-   DirectX::XMFLOAT2 at = { float(restartButtonRect_.left + 3), float(restartButtonRect_.top + 6) };
-   //Draw(at, &Texture::MINE_RECT);
+   restartButtonRect_ = {
+      width / 2 - buttonWidth / 2 ,
+      height / 2 - buttonHeight / 2,
+      width / 2 + buttonWidth / 2,
+      height / 2 + buttonHeight / 2
+   };
+   //RenderPanel(restartButtonRect_, restartButtonPressed_ ? PanelState::In : PanelState::Out);
+   RECT1 at;
+   at.left = restartButtonRect_.left + 3;
+   at.right = restartButtonRect_.right - 3;
+   at.top = restartButtonRect_.top + 6;
+   at.bottom = restartButtonRect_.bottom - 6;
+   sprite_.Draw(&at, &Texture::MINE_RECT);
 }
 
 void Game::RenderTimer() {
@@ -510,8 +558,8 @@ void Game::RenderTimer() {
    height = UI::TOP_PANEL_HEIGHT;
 
    DirectX::XMFLOAT2 at = { width / 3 + width / 3.0f, 40 };
-   RECT size = { at.x - 4, at.y - 10, at.x + Texture::NUMBER_WIDTH * UI::MINES_COUNT_CHAR_NUMBER + 10, at.y + Texture::NUMBER_HEIGHT + 10 };
-   RenderPanel(size, PanelState::In);
+   RECT1 size = { at.x - 4, at.y - 10, at.x + Texture::NUMBER_WIDTH * UI::MINES_COUNT_CHAR_NUMBER + 10, at.y + Texture::NUMBER_HEIGHT + 10 };
+   //RenderPanel(size, PanelState::In);
    RenderNumber(at, data_.timer);
 }
 
@@ -520,7 +568,7 @@ void Game::RenderGameField() {
 
    for (auto x = 0; x < CELLS_X; x++) {
       for (auto y = 0; y < CELLS_Y; y++) {
-         RECT at;
+         RECT1 at;
          at.left = x * CELL_WIDTH;
          at.right = at.left + CELL_WIDTH;
          at.top = y * CELL_HEIGHT + UI::TOP_PANEL_HEIGHT;
@@ -534,7 +582,7 @@ void Game::RenderGameField() {
             }
             if (cell->IsMarked()) {
                auto paddingX = 6; auto paddingY = 2;
-               RECT at;
+               RECT1 at;
                at.left = x * CELL_WIDTH + paddingX;
                at.right = at.left + CELL_WIDTH - paddingX * 2;
                at.top = y * CELL_HEIGHT + UI::TOP_PANEL_HEIGHT + paddingY;
@@ -549,7 +597,7 @@ void Game::RenderGameField() {
          else if (cell->minesNear > 0) {
             auto paddingX = NUMBER_WIDTH_HALF;
             auto paddingY = NUMBER_HEIGHT_HALF;
-            RECT at;
+            RECT1 at;
             at.left = x * CELL_WIDTH + paddingX;
             at.right = at.left + CELL_WIDTH - paddingX * 2;
             at.top = y * CELL_HEIGHT + UI::TOP_PANEL_HEIGHT + paddingY;
@@ -578,11 +626,11 @@ void Game::Render() {
 
    d3d_.ctx_->VSSetShader(vertexShader_.Get(), 0, 0);
    d3d_.ctx_->PSSetShader(pixelShader_.Get(), 0, 0);
-   d3d_.ctx_->PSSetShaderResources(0, 1, sprite_.texture_.GetAddressOf());
+   d3d_.ctx_->PSSetShaderResources(0, 1, sprite_.textureView_.GetAddressOf());
    d3d_.ctx_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
 
+   RenderTopPanel();
    RenderGameField();
-   //RenderTopPanel();
 
    d3d_.swapChain_->Present(1, 0);
 }

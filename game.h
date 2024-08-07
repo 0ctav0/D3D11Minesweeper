@@ -46,7 +46,6 @@ struct Pos {
    }
 };
 
-
 struct GameData {
    std::array<std::array<Cell, CELLS_Y>, CELLS_X> cells = {};
 
@@ -57,9 +56,6 @@ struct GameData {
    UINT timer = 0;
 };
 
-enum PanelState : BYTE {
-   In, Out
-};
 
 class Game {
 public:
@@ -96,7 +92,7 @@ private:
 
    std::vector<char> GetDigits(int number);
 
-   void RenderPanel(RECT size, PanelState state);
+   void RenderPanel(RECT1 size, PanelState state);
    void RenderTopPanel();
    void RenderNumber(DirectX::XMFLOAT2& pos, int number);
    void RenderMinesNumber();
@@ -126,7 +122,7 @@ private:
    Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState_;
    Microsoft::WRL::ComPtr<ID3D11BlendState> blendState_;
 
-   RECT restartButtonRect_ = {};
+   RECT1 restartButtonRect_ = {};
    bool restartButtonPressed_ = false;
    Pos selectedCell_ = {};
 
