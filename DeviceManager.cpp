@@ -2,6 +2,7 @@
 #include "DeviceManager.h"
 
 bool DeviceManager::Init(HWND hwnd, long width, long height) {
+   using namespace Microsoft::WRL;
    Log::Info("DeviceManager::Init start");
    width_ = width;
    height_ = height;
@@ -10,22 +11,7 @@ bool DeviceManager::Init(HWND hwnd, long width, long height) {
      D3D_FEATURE_LEVEL_11_0,
    };
 
-   DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
-   swapChainDesc.BufferCount = 1;
-   swapChainDesc.BufferDesc.Width = width;
-   swapChainDesc.BufferDesc.Height = height;
-   swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-   swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
-   swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
 
-   swapChainDesc.SampleDesc.Count = 1;
-   swapChainDesc.SampleDesc.Quality = 0;
-
-   swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-   swapChainDesc.OutputWindow = hwnd;
-   swapChainDesc.Windowed = TRUE;
-   swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-   swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
    unsigned int creationFlags = 0;
 
@@ -33,36 +19,57 @@ bool DeviceManager::Init(HWND hwnd, long width, long height) {
    creationFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 
-   HRESULT hr;
+
    unsigned int driver = 0;
 
-   Microsoft::WRL::ComPtr<IDXGISwapChain> swapChain;
-   Microsoft::WRL::ComPtr<ID3D11Device> device;
-   Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
+   ComPtr<ID3D11Device> device;
+   ComPtr<ID3D11DeviceContext> context;
 
-   hr = D3D11CreateDeviceAndSwapChain(
+   DX::ThrowIfFailed(D3D11CreateDevice(
       nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, creationFlags,
-      featureLevels, static_cast<UINT>(std::size(featureLevels)),
-      D3D11_SDK_VERSION, &swapChainDesc, swapChain.GetAddressOf(),
-      device.GetAddressOf(), &featureLevel_, context.GetAddressOf());
-
-   DX::ThrowIfFailed(hr, "Failed to create the Direct3D device!");
+      featureLevels, static_cast<UINT>(std::size(featureLevels)), D3D11_SDK_VERSION,
+      device.GetAddressOf(), &featureLevel_, context.GetAddressOf()),
+      "Failed to create the Direct3D device!");
 
    DX::ThrowIfFailed(device.As(&device_), "Failed to set device");
    DX::ThrowIfFailed(context.As(&ctx_), "Failed to set context");
-   DX::ThrowIfFailed(swapChain.As(&swapChain_), "Failed to set swap chain");
 
-   Microsoft::WRL::ComPtr<ID3D11Texture2D> backBufferTexture;
-   hr = swapChain_->GetBuffer(0, _uuidof(ID3D11Texture2D),
-      (LPVOID*)&backBufferTexture);
+   ComPtr<IDXGIDevice1> dxgiDevice;
+   DX::ThrowIfFailed(device_.As(&dxgiDevice));
 
-   DX::ThrowIfFailed(hr, "Failed to get the swap chain back buffer!");
+   ComPtr<IDXGIAdapter> dxgiAdapter;
+   DX::ThrowIfFailed(dxgiDevice->GetAdapter(dxgiAdapter.GetAddressOf()));
 
-   device_->CreateRenderTargetView(backBufferTexture.Get(), 0,
-      renderTargetView_.GetAddressOf());
+   ComPtr<IDXGIFactory2> dxgiFactory;
+   DX::ThrowIfFailed(
+      dxgiAdapter->GetParent(IID_PPV_ARGS(dxgiFactory.GetAddressOf())));
 
+   DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
+   swapChainDesc.Width = width;
+   swapChainDesc.Height = height;
+   swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+   swapChainDesc.SampleDesc.Count = 1;
+   swapChainDesc.SampleDesc.Quality = 0;
+   swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+   swapChainDesc.BufferCount = 1;
+   swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+   swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
-   DX::ThrowIfFailed(hr, "Failed to create the render target view !");
+   DXGI_SWAP_CHAIN_FULLSCREEN_DESC fsSwapChainDesc = {};
+   fsSwapChainDesc.Windowed = TRUE;
+
+   DX::ThrowIfFailed(dxgiFactory->CreateSwapChainForHwnd(
+      device_.Get(), hwnd, &swapChainDesc, &fsSwapChainDesc, nullptr,
+      swapChain_.ReleaseAndGetAddressOf()),
+      "Failed to create the swap chain");
+
+   ComPtr<ID3D11Texture2D> backBufferTexture;
+   DX::ThrowIfFailed(swapChain_->GetBuffer(0, IID_PPV_ARGS(backBufferTexture.GetAddressOf())),
+      "Failed to get the swap chain back buffer!");
+
+   DX::ThrowIfFailed(device_->CreateRenderTargetView(backBufferTexture.Get(), 0,
+      renderTargetView_.GetAddressOf()),
+      "Failed to create the render target view !");
 
    ctx_->OMSetRenderTargets(1, renderTargetView_.GetAddressOf(), nullptr);
 

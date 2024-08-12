@@ -76,7 +76,7 @@ namespace Log {
 }
 
 namespace DX {
-   inline void ThrowIfFailed(HRESULT hr, char const* const message) {
+   inline void ThrowIfFailed(HRESULT hr, char const* const message = "") {
       if (FAILED(hr)) {
          // Set a breakpoint on this line to catch DirectX API errors
          Log::Error(message);
