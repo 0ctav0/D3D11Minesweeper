@@ -56,6 +56,12 @@ struct GameData {
    UINT timer = 0;
 };
 
+struct CommonBuffer {
+   float width;
+   float height;
+   float reserved[2];
+};
+
 
 class Game {
 public:
@@ -118,6 +124,11 @@ private:
 
    Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader_;
    Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader_;
+
+   Microsoft::WRL::ComPtr<ID3D11VertexShader> clampTextureVS_;
+   Microsoft::WRL::ComPtr<ID3D11PixelShader> clampTexturePS_;
+
+   Microsoft::WRL::ComPtr<ID3D11Buffer> commonBuffer_;
    Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout_;
    Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState_;
    Microsoft::WRL::ComPtr<ID3D11BlendState> blendState_;

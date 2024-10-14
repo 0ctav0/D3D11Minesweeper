@@ -13,7 +13,8 @@ private:
    unsigned long vertI_;
 
 public:
-   Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> textureView_;
+   Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> atlasView_;
+   Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> backgroundCellView_;
    Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer_;
 
    bool Init(DeviceManager* d3d, const wchar_t* filename);
@@ -24,4 +25,6 @@ public:
    void Draw(const RECT1* at, const RECT1* tex, Mirror mirror);
    void Draw(const RECT1* at, const RECT1* tex, bool immediate);
    void Draw(const RECT1* at, const RECT1* tex);
+
+   void DrawBackgroundCell(RECT1* at);
 };

@@ -282,17 +282,9 @@ std::vector<char> Game::GetDigits(int number) {
 bool Game::LoadContent() {
    Log::Info("Game::LoadContent start");
 
-
-   Microsoft::WRL::ComPtr<ID3DBlob> vsBlob;
-   Microsoft::WRL::ComPtr<ID3DBlob> psBlob;
-
-   DX::ThrowIfFailed(D3DCompileFromFile(L"shader.fx", nullptr, nullptr, "VS_Main", "vs_4_0", 0, 0, vsBlob.GetAddressOf(), nullptr), "Failed to compile a shader from a file");
-
-   DX::ThrowIfFailed(d3d_.device_->CreateVertexShader(vsBlob.Get()->GetBufferPointer(), vsBlob.Get()->GetBufferSize(), nullptr, vertexShader_.GetAddressOf()), "Failed to create vertex shader");
-
-   DX::ThrowIfFailed(D3DCompileFromFile(L"shader.fx", nullptr, nullptr, "PS_Main", "ps_4_0", 0, 0, psBlob.GetAddressOf(), nullptr), "Failed to compile a shader from a file");
-
-   DX::ThrowIfFailed(d3d_.device_->CreatePixelShader(psBlob.Get()->GetBufferPointer(), psBlob.Get()->GetBufferSize(), nullptr, pixelShader_.GetAddressOf()), "Failed to create pixel shader");
+   Microsoft::WRL::ComPtr<ID3DBlob> blob;
+   d3d_.LoadShader(L"shader.fx", blob, vertexShader_.GetAddressOf(), pixelShader_.GetAddressOf());
+   d3d_.LoadShader(L"clamp-texture-shader.fx", blob, clampTextureVS_.GetAddressOf(), clampTexturePS_.GetAddressOf());
 
 
    D3D11_INPUT_ELEMENT_DESC inputDesc[] = {
@@ -306,8 +298,20 @@ bool Game::LoadContent() {
    auto totalLayoutElements = ARRAYSIZE(inputDesc);
 
    DX::ThrowIfFailed(d3d_.device_->CreateInputLayout(
-      inputDesc, totalLayoutElements, vsBlob->GetBufferPointer(),
-      vsBlob->GetBufferSize(), inputLayout_.GetAddressOf()), "Failed to create an input layout");
+      inputDesc, totalLayoutElements, blob->GetBufferPointer(),
+      blob->GetBufferSize(), inputLayout_.GetAddressOf()), "Failed to create an input layout");
+
+   // setting up common buffer
+   static_assert((sizeof(CommonBuffer) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
+   CommonBuffer initData = { width_, height_ };
+   D3D11_BUFFER_DESC commonBufferDesc = {};
+   commonBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+   //commonBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+   commonBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+   commonBufferDesc.ByteWidth = sizeof(CommonBuffer);
+   D3D11_SUBRESOURCE_DATA initDataSub = {};
+   initDataSub.pSysMem = &initData;
+   DX::ThrowIfFailed(d3d_.device_->CreateBuffer(&commonBufferDesc, &initDataSub, commonBuffer_.GetAddressOf()), "Failed to create the common buffer");
 
 
    D3D11_SAMPLER_DESC samplerDesc = {};
@@ -316,7 +320,7 @@ bool Game::LoadContent() {
    samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
    samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
    samplerDesc.MaxAnisotropy = 1;
-   samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+   samplerDesc.ComparisonFunc = D3D11_COMPARISON_EQUAL;
    samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 
    DX::ThrowIfFailed(d3d_.device_->CreateSamplerState(&samplerDesc,
@@ -450,6 +454,9 @@ void Game::RenderPanel(RECT1 rect, PanelState state = PanelState::Out) {
    bgRect.right -= UI::RIGHT_VERTICAL_LINE.Width();
    bgRect.top += UI::TOP_HORIZONTAL_LINE.Height();
    bgRect.bottom -= UI::BOTTOM_HORIZONTAL_LINE.Height();
+
+   sprite_.DrawBackgroundCell(&bgRect);
+
    RECT1 atI = { bgRect.left, bgRect.top, bgRect.left + bgWidth, bgRect.top + bgHeight };
    /* for (auto x = 0; x <= width / bgWidth; x++) {
        for (auto y = 0; y <= height / bgHeight; y++) {
@@ -462,19 +469,20 @@ void Game::RenderPanel(RECT1 rect, PanelState state = PanelState::Out) {
           sprite_.Draw(&at, &UI::BACKGROUND_RECT);
        }
     }*/
-   sprite_.Begin();
-   while (atI.Intersects(bgRect)) {
-      sprite_.Draw(&atI, &UI::BACKGROUND_RECT, false);
-      atI.MoveX(bgWidth);
-      if (atI.left > bgRect.right) {
-         sprite_.End();
-         atI.MoveY(bgHeight);
-         atI.left = bgRect.left;
-         atI.right = bgRect.left + bgWidth;
-         sprite_.Begin();
-      }
-   }
-   sprite_.End();
+
+    //sprite_.Begin();
+    //while (atI.Intersects(bgRect)) {
+    //   sprite_.Draw(&atI, &UI::BACKGROUND_RECT, false);
+    //   atI.MoveX(bgWidth);
+    //   if (atI.left > bgRect.right) {
+    //      sprite_.End();
+    //      atI.MoveY(bgHeight);
+    //      atI.left = bgRect.left;
+    //      atI.right = bgRect.left + bgWidth;
+    //      sprite_.Begin();
+    //   }
+    //}
+    //sprite_.End();
 }
 
 void Game::RenderTopPanel() {
@@ -626,11 +634,22 @@ void Game::Render() {
 
    d3d_.ctx_->VSSetShader(vertexShader_.Get(), 0, 0);
    d3d_.ctx_->PSSetShader(pixelShader_.Get(), 0, 0);
-   d3d_.ctx_->PSSetShaderResources(0, 1, sprite_.textureView_.GetAddressOf());
+   d3d_.ctx_->PSSetShaderResources(0, 1, sprite_.atlasView_.GetAddressOf());
    d3d_.ctx_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
+   d3d_.ctx_->PSSetConstantBuffers(0, 1, commonBuffer_.GetAddressOf());
+
+   RenderGameField();
+
+
+   d3d_.ctx_->VSSetShader(clampTextureVS_.Get(), 0, 0);
+   d3d_.ctx_->PSSetShader(clampTexturePS_.Get(), 0, 0);
+   d3d_.ctx_->PSSetShaderResources(0, 1, sprite_.backgroundCellView_.GetAddressOf());
+
+   //d3d_.ctx_->PSSetShaderResources(0, 1, sprite_.textureView_.GetAddressOf());
+   //d3d_.ctx_->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
+   //d3d_.ctx_->PSSetConstantBuffers(0, 1, commonBuffer_.GetAddressOf());
 
    RenderTopPanel();
-   RenderGameField();
 
    d3d_.swapChain_->Present(1, 0);
 }

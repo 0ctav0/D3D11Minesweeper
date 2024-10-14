@@ -100,3 +100,14 @@ DirectX::XMFLOAT3 DeviceManager::PixelXMFLOAT3(float x, float y, float z)
 {
    return DirectX::XMFLOAT3(XPixelToRelative(x), YPixelToRelative(y), z);
 }
+
+void DeviceManager::LoadShader(LPCWSTR fileName, Microsoft::WRL::ComPtr<ID3DBlob>& blob, ID3D11VertexShader** vs, ID3D11PixelShader** ps)
+{
+   DX::ThrowIfFailed(D3DCompileFromFile(fileName, nullptr, nullptr, "VS_Main", "vs_4_1", 0, 0, blob.GetAddressOf(), nullptr), "Failed to compile a shader from a file");
+
+   DX::ThrowIfFailed(device_->CreateVertexShader(blob.Get()->GetBufferPointer(), blob.Get()->GetBufferSize(), nullptr, vs), "Failed to create vertex shader");
+
+   DX::ThrowIfFailed(D3DCompileFromFile(fileName, nullptr, nullptr, "PS_Main", "ps_4_1", 0, 0, blob.GetAddressOf(), nullptr), "Failed to compile a shader from a file");
+
+   DX::ThrowIfFailed(device_->CreatePixelShader(blob.Get()->GetBufferPointer(), blob.Get()->GetBufferSize(), nullptr, ps), "Failed to create pixel shader");
+}

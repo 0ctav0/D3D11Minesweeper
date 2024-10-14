@@ -6,6 +6,7 @@ public:
    float XPixelToRelative(float x);
    float YPixelToRelative(float y);
    DirectX::XMFLOAT3 PixelXMFLOAT3(float x, float y, float z = .5f);
+   void LoadShader(LPCWSTR fileName, Microsoft::WRL::ComPtr<ID3DBlob>& blob, ID3D11VertexShader** vs, ID3D11PixelShader** ps);
 
    long width_, height_;
 

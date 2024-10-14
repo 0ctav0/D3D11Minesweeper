@@ -173,6 +173,7 @@
     <ClInclude Include="Types.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="clamp-texture-shader.fx" />
     <FxCompile Include="shader.fx" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
