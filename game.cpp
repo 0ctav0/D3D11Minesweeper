@@ -475,8 +475,10 @@ void Game::RenderTimer() {
    GetDefaultSize(width, height);
    height = UI::TOP_PANEL_HEIGHT;
 
-   DirectX::XMFLOAT2 at = { width / 3 + width / 3.0f, 40 };
-   RECT size = { at.x - 4, at.y - 10, at.x + Texture::NUMBER_WIDTH * UI::MINES_COUNT_CHAR_NUMBER + 10, at.y + Texture::NUMBER_HEIGHT + 10 };
+   constexpr auto marginRight = 11;
+   constexpr auto timerWidth = Texture::NUMBER_WIDTH * UI::MINES_COUNT_CHAR_NUMBER + 14;
+   DirectX::XMFLOAT2 at = { float(width - timerWidth) - marginRight, 40 };
+   RECT size = { at.x, at.y - 10, at.x + timerWidth, at.y + Texture::NUMBER_HEIGHT + 10 };
    RenderPanel(size, PanelState::In);
    RenderNumber(at, data_.timer);
 }
